@@ -126,7 +126,11 @@ jobs:
       - name: Write checksums
         run: |
           cd dist
-          find . -name '*.apk' -print0 | xargs -0 sha256sum | sed 's| \./| |' > SHA256SUMS.txt
+          # gh run download 会保留 artifact 内的目录结构，这里只留文件名，避免发布出 app/build/... 这种路径。
+          : > SHA256SUMS.txt
+          while IFS= read -r -d '' apk; do
+            printf '%s  %s\n' "$(sha256sum "$apk" | cut -d' ' -f1)" "$(basename "$apk")" >> SHA256SUMS.txt
+          done < <(find . -name '*.apk' -print0)
           cat SHA256SUMS.txt
       - name: Publish release
         env:
