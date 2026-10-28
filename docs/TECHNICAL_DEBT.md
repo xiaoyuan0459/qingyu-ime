@@ -44,7 +44,7 @@
 
 ## DEBT-CI-01
 
-**P1 · 全新 runner 验证。** 已推送 [PR #1](https://github.com/xiaoyuan0459/qingyu-ime/pull/1)，配置两个 ABI、lint、schema / 许可检查、运行时依赖清单与开发产物上传。工作流显式初始化固定版本命令行工具，只安装 platform-tools；清理未使用的预装工具链以留出构建空间，下载步骤设置独立超时。单元和设备测试按当前要求改为手动执行。最终结果以 PR 的最新提交检查和保存的报告为准，整套成功前保持待验收。
+**P1 · 全新 runner 验证。** 已配置 GitHub Actions 工作流，两个 ABI、lint、schema / 许可检查、运行时依赖清单与开发产物上传。工作流显式初始化固定版本命令行工具，只安装 platform-tools；清理未使用的预装工具链以留出构建空间，下载步骤设置独立超时。单元和设备测试按当前要求改为手动执行。最终结果以 `master` 最近一次[工作流运行](https://github.com/xiaoyuan0459/qingyu-ime/actions/workflows/build.yml)为准，整套成功前保持待验收。
 
 验收：PR 在全新 Ubuntu runner 通过 SDK 安装、依赖校验、两个 ABI 编译与 lint，并保存开发产物；确认构建不需要发布 Secrets。当前工作流不自动发布正式 APK。
 
@@ -160,7 +160,7 @@
 
 - 设置页保持不透明背景并统一平移动画时长，移除淡入淡出造成的背景闪烁；三档触感保存后即时预览。此前已在 arm64 Android 13 魅族设备覆盖安装，设备锁屏时不能确认主观体验。
 - Android 15 x86_64 模拟器运行 5 项设备回归；许可、完整真机矩阵和词库二进制重建差异保留为发行前事项。
-- 新工作流覆盖两个 ABI 构建、lint、schema 差异检查、许可哈希和运行时依赖清单；单元与设备用例保留供按需手动执行。GitHub 实际结果及报告见 [PR #1](https://github.com/xiaoyuan0459/qingyu-ime/pull/1) 的最新检查。
+- 新工作流覆盖两个 ABI 构建、lint、schema 差异检查、许可哈希和运行时依赖清单；单元与设备用例保留供按需手动执行。GitHub 实际结果见 [Actions 运行记录](https://github.com/xiaoyuan0459/qingyu-ime/actions/workflows/build.yml)。
 
 ## DEBT-UI-DENSITY-01
 
