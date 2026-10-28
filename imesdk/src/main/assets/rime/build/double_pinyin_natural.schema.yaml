@@ -1,0 +1,116 @@
+# `cn_en` 段的中英混输词表是 stabledb（librime 直接把 `*.txt` 当只读库读），
+# 不走编译，所以词表随 pack 放在 `en_dicts/` 下，见 tools/build-rime-pack.py。
+# 解析顺序是「用户目录 → shared 目录」回退，pack 目录即 shared 目录。
+
+cn_en:
+  db_class: stabledb
+  dictionary: ""
+  enable_completion: true
+  enable_sentence: false
+  initial_quality: 0.5
+  user_dict: "en_dicts/cn_en_double_pinyin"
+emoji:
+  inherit_comment: false
+  opencc_config: emoji.json
+  option_name: emoji
+engine:
+  filters:
+    - "simplifier@emoji"
+    - "simplifier@traditionalize"
+    - uniquifier
+  processors:
+    - ascii_composer
+    - recognizer
+    - speller
+    - punctuator
+    - selector
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - echo_translator
+    - script_translator
+    - "table_translator@english"
+    - "table_translator@cn_en"
+english:
+  dictionary: english
+  enable_sentence: false
+  enable_user_dict: false
+  initial_quality: 1.1
+menu:
+  page_size: 100
+punctuator:
+  symbols:
+    "/": ["＠", "＃", "＊", "＋", "……", "〜", "（", "）", "、", "/"]
+recognizer:
+  patterns:
+    punct: "^/([0-9]|10|[A-Za-z]*?)$"
+schema:
+  name: "自然码双拼"
+  schema_id: double_pinyin_natural
+speller:
+  alphabet: "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA`/"
+  delimiter: "''"
+  algebra:
+    # 零声母（实测自旧棱镜码空间）
+    - xform/^a$/aa/
+    - xform/^e$/ee/
+    - xform/^o$/oo/
+    - derive/^an$/aj/
+    - derive/^ao$/ak/
+    - derive/^ai$/al/
+    - derive/^en$/ef/
+    - derive/^ei$/ez/
+    - derive/^ou$/ob/
+    - xform/^ang$/ah/
+    - xform/^eng$/eg/
+    # ch → i
+    - derive/^ch/i/
+    # sh → u
+    - derive/^sh/u/
+    # zh → v
+    - derive/^zh/v/
+    - derive/^([bjlnqx])iang$/\1d/
+    - derive/^([ghikuv])uang$/\1d/
+    - derive/^([jqx])iong$/\1s/
+    - derive/^([bdfjlmnpqtx])iao$/\1c/
+    - derive/^([bcdfghiklmnprstuvwz])eng$/\1g/
+    - derive/^([bcdfghiklmnprstuvwyz])ang$/\1h/
+    - derive/^([bdjlmnpqtx])ian$/\1m/
+    - derive/^([bdjlmnpqtxy])ing$/\1y/
+    - derive/^([cdghijklnqrstuvxyz])uan$/\1r/
+    - derive/^([cdghiklnrstvyz])ong$/\1s/
+    - derive/^([ghikuv])uai$/\1y/
+    - derive/^([bcdfghikmnprsuvwz])en$/\1f/
+    - derive/^([bcdfghiklmnprstuvwyz])an$/\1j/
+    - derive/^([bcdghiklmnprstuvyz])ao$/\1k/
+    - derive/^([bcdghiklmnpstuvwz])ai$/\1l/
+    - derive/^([bjlmnpqxy])in$/\1n/
+    - derive/^([bdjlmnpqtx])ie$/\1x/
+    - derive/^([bcdfghklmnptuvwz])ei$/\1z/
+    - derive/^([cdfghiklmnprstuvyz])ou$/\1b/
+    - derive/^([cdghiklnrstuvz])uo$/\1o/
+    - derive/^([cdghijklqrstuvxyz])un$/\1p/
+    - derive/^([cdghikrstuvz])ui$/\1v/
+    - derive/^([djlmnqx])iu$/\1q/
+    - derive/^([djlqx])ia$/\1w/
+    - derive/^([ghikruv])ua$/\1w/
+    - derive/^([jqxy])ue$/\1t/
+    - derive/^([ln])ve$/\1t/
+    - derive/^([jqxy])u$/\1v/
+    # 超级简拼（放在映射之后，所以取到的是双拼码的首字母）
+    - abbrev/^([a-z]).+$/$1/
+traditionalize:
+  opencc_config: s2t.json
+  option_name: traditionalization
+translator:
+  always_show_comments: true
+  dictionary: pinyin
+  initial_quality: 1.2
+  prism: double_pinyin_natural
+  spelling_hints: 100

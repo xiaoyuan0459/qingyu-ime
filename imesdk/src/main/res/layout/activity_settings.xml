@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    tools:context=".ui.activity.SettingsActivity">
+
+    <!--
+      Material3 下 colorPrimary 是强调色（蓝），不再是旧 AppCompat 时代的工具条底色，
+      所以这里改用 colorSurface 保持白色背景。
+
+      高度必须用 wrap_content + minHeight：代码里会把状态栏高度加到 toolbar 的 paddingTop 上，
+      写成固定的 ?attr/actionBarSize 时标题会被内边距挤到十几像素高、整页看不到标题。
+    -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurface"
+        android:elevation="0dp"
+        android:minHeight="@dimen/pref_appbar_height"
+        app:contentInsetStart="@dimen/pref_appbar_nav_inset"
+        app:contentInsetStartWithNavigation="@dimen/pref_appbar_title_gap"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:title="@string/settings_main_title"
+        app:titleTextAppearance="@style/TextAppearance.AppTheme.AppbarTitle"
+        app:titleTextColor="@color/pref_title_text" />
+
+    <View
+        android:id="@+id/toolbar_divider"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/pref_divider_height"
+        android:background="@color/pref_divider"
+        app:layout_constraintTop_toBottomOf="@id/toolbar" />
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/nav_host_fragment"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="?attr/colorSurface"
+        app:defaultNavHost="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_divider"
+        app:navGraph="@navigation/settings_nav" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

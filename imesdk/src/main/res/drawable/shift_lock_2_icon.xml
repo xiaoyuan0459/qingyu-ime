@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="15dp"
+    android:height="18dp"
+    android:viewportWidth="40"
+    android:viewportHeight="48">
+    <!-- Shift 锁定态：实心箭头 + 下方 7×1.8dp 短横条（对齐搜狗魅族版） -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M18.75,2.35 Q20,0.65 21.25,2.35 L36.65,23.4 Q37.55,24.7 35.95,24.7 L4.05,24.7 Q2.45,24.7 3.35,23.4 Z" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M11.3,23.7 h17.4 v13.3 q0,2.2 -2.2,2.2 h-13 q-2.2,0 -2.2,-2.2 z" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M10.7,43.4 v2.4 q0,1.2 1.2,1.2 h16.2 q1.2,0 1.2,-1.2 v-2.4 q0,-1.2 -1.2,-1.2 h-16.2 q-1.2,0 -1.2,1.2 z" />
+</vector>

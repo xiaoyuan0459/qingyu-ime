@@ -1,0 +1,75 @@
+
+emoji:
+  # 展开后的 emoji 候选要带上真实读音注释，模糊音开关关闭时才能把它一起过滤掉
+  inherit_comment: true
+  opencc_config: emoji.json
+  option_name: emoji
+engine:
+  filters:
+    - "simplifier@emoji"
+    - "simplifier@traditionalize"
+    - uniquifier
+  processors:
+    - ascii_composer
+    - recognizer
+    - speller
+    - punctuator
+    - selector
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - echo_translator
+    - script_translator
+menu:
+  page_size: 100
+punctuator:
+  symbols:
+    "/": ["@", "＃", "＊", "＋", "……", "〜", "（", "）", "、", "/"]
+recognizer:
+  patterns:
+    punct: "^/([0-9]|10|[A-Za-z]*?)$"
+schema:
+  name: "九键拼音"
+  schema_id: t9_pinyin
+speller:
+  alphabet: "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA`/"
+  delimiter: "''"
+  # 九宫格：键盘送进引擎的是**每键首字母的大写键码**（`hao` → `GAM`），不是数字。
+  # 所以这里把每个字母派生成它所在键的首字母。规则由 `qingyu_probe` 实测旧棱镜
+  # 得到的 226 个键码反推，并与 `T9PinYinUtils.pinyinMap` 离线互校（M2 已验）。
+  algebra:
+    # 模糊音：必须排在字母→键码的映射之前，否则规则作用不到拼音层。
+    # 组名与 FuzzySpellingGate.rewrites 逐条对齐；关某组由闸门按读音键码归因挡掉。
+    - "fuzz/^([zcs])h/$1/"            # zh_z：zh/ch/sh 认作 z/c/s
+    - "fuzz/^([zcs])([^h])/$1h$2/"    # zh_z：反向
+    - "fuzz/^n/l/"                    # n_l
+    - "fuzz/^l/n/"                    # n_l
+    - "fuzz/^f/h/"                    # f_h
+    - "fuzz/^h/f/"                    # f_h
+    - "fuzz/([aeiou])ng$/$1n/"        # nasal
+    - "fuzz/([aeiou])n$/$1ng/"        # nasal
+    - abbrev/^([a-z]).+$/$1/      # 先取简拼（小写首字母），再由下面的规则映射成键码
+    - abbrev/^([zcs]h).+$/$1/     # zh/ch/sh 作为整体简拼，映射后是两字母键码（如 ch → AG）
+    - derive/[abc]/A/
+    - derive/[def]/D/
+    - derive/[ghi]/G/
+    - derive/[jkl]/J/
+    - derive/[mno]/M/
+    - derive/[pqrs]/P/
+    - derive/[tuv]/T/
+    - derive/[wxyz]/W/
+traditionalize:
+  opencc_config: s2t.json
+  option_name: traditionalization
+translator:
+  always_show_comments: true
+  dictionary: pinyin
+  initial_quality: 1.2
+  prism: t9_pinyin
+  spelling_hints: 100

@@ -1,0 +1,10 @@
+{
+  "name": "qingyu-handwriting-upload",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tencent Cloud SCF relay: validate Qingyu handwriting JSONL and commit to a private GitHub data repository",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test index.test.js"
+  }
+}

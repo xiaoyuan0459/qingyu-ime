@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  设置页（Preference）尺寸令牌。
+  数值取自参考基线截图在 440dpi / fontScale 1.0 设备上的像素实测（÷2.75 换算 dp），
+  改这里即可同时影响布局与 FlymeSwitch 的自定义测量，勿在布局里再写魔法数。
+-->
+<resources>
+    <!-- 应用栏：状态栏下方 56dp，底部一条通栏发丝线 -->
+    <dimen name="pref_appbar_height">56dp</dimen>
+    <dimen name="pref_appbar_title_size">19sp</dimen>
+    <dimen name="pref_appbar_nav_inset">18dp</dimen>
+    <!-- 有返回按钮时按钮框占 48dp，标题紧贴其后 → 正好落在屏幕左 48dp，与参考基线一致 -->
+    <dimen name="pref_appbar_title_gap">0dp</dimen>
+    <dimen name="pref_appbar_title_start_nav">60dp</dimen>
+
+    <!-- 发丝线：0.5dp 在 440dpi 下正好落到 1 物理像素，高分屏不会糊成灰带 -->
+    <dimen name="pref_divider_height">0.5dp</dimen>
+
+    <!-- 列表行：单行 55dp、双行约 64dp；左右缩进 18dp -->
+    <dimen name="pref_row_min_height">55dp</dimen>
+    <dimen name="pref_row_padding_vertical">11dp</dimen>
+    <dimen name="pref_row_padding_horizontal">18dp</dimen>
+    <dimen name="pref_text_title_size">17sp</dimen>
+    <dimen name="pref_text_summary_size">14sp</dimen>
+
+    <!-- 分组标题：整块 34dp，上方留白后接发丝线 -->
+    <dimen name="pref_category_padding_top">16dp</dimen>
+    <dimen name="pref_category_padding_bottom">4dp</dimen>
+    <dimen name="pref_text_category_size">13sp</dimen>
+
+    <!-- 滑条：轨道与开关同厚的胶囊 + 白底蓝环圆钮（实测轨道 22dp） -->
+    <dimen name="pref_slider_track_height">22dp</dimen>
+    <dimen name="pref_slider_track_corner">11dp</dimen>
+    <dimen name="pref_slider_thumb_diameter">14dp</dimen>
+    <dimen name="pref_slider_thumb_stroke">4dp</dimen>
+
+    <!-- 行尾箭头：实测墨迹 6x10dp -->
+    <dimen name="pref_chevron_width">8dp</dimen>
+    <dimen name="pref_chevron_height">12dp</dimen>
+
+    <!-- 胶囊开关：轨道 40x22dp 全圆角，开钮 13dp 圆、关钮 8.5x3.5dp 短横 -->
+    <dimen name="pref_switch_width">40dp</dimen>
+    <dimen name="pref_switch_track_height">22dp</dimen>
+    <dimen name="pref_switch_track_corner">11dp</dimen>
+    <dimen name="pref_switch_thumb_size">13dp</dimen>
+    <dimen name="pref_switch_thumb_off_width">8.5dp</dimen>
+    <dimen name="pref_switch_thumb_off_height">3.5dp</dimen>
+
+    <!-- 手写设置页：参考基线里的预览区约 128dp 高 -->
+    <dimen name="handwriting_preview_height">128dp</dimen>
+</resources>

@@ -1,0 +1,95 @@
+﻿# 输入场景排序评测集
+#
+# 每行：拼音 <TAB> 期望首选 <TAB> 类别
+# 用途：给 tools/eval-dict-order.py 算 top1 / top3 / MRR，据此选 --strength。
+#
+# 选词原则：
+# - 只收多字词。单字权重来自 8105/41448 字表，频率层不碰，无需评测。
+# - 期望首选取「日常输入时最可能想要的词」，不是「语料里最高频的词」——
+#   这两者在口语词上经常不一致，正是要检验的地方。
+# - 避开本身有歧义的拼音（如 jing li 可能是「经历/经理」），否则评测结果不可解释。
+#
+ni hao	你好	口语
+wo men	我们	口语
+ta men	他们	口语
+shen me	什么	口语
+zen me	怎么	口语
+xie xie	谢谢	口语
+zai jian	再见	口语
+jin tian	今天	口语
+ming tian	明天	口语
+zuo tian	昨天	口语
+xian zai	现在	口语
+yi jing	已经	口语
+ke shi	可是	口语
+suo yi	所以	口语
+yin wei	因为	口语
+dan shi	但是	口语
+ru guo	如果	口语
+ran hou	然后	口语
+hao de	好的	口语
+zhi dao	知道	口语
+mei you	没有	口语
+yi qi	一起	口语
+ke yi	可以	口语
+dui bu qi	对不起	口语
+mei guan xi	没关系	口语
+zen me ban	怎么办	口语
+bu zhi dao	不知道	口语
+wei shen me	为什么	口语
+dian hua	电话	常用
+shou ji	手机	常用
+dian nao	电脑	常用
+gong zuo	工作	常用
+xue xi	学习	常用
+sheng huo	生活	常用
+peng you	朋友	常用
+yi sheng	医生	常用
+yi yuan	医院	常用
+xue xiao	学校	常用
+gong si	公司	常用
+shi jian	时间	常用
+di fang	地方	常用
+dong xi	东西	常用
+wen ti	问题	常用
+ban fa	办法	常用
+qing kuang	情况	常用
+yuan yin	原因	常用
+jie guo	结果	常用
+ying xiang	影响	常用
+guan xi	关系	常用
+jing ji	经济	书面
+zheng fu	政府	书面
+she hui	社会	书面
+wen hua	文化	书面
+li shi	历史	书面
+ke xue	科学	书面
+jiao yu	教育	书面
+huan jing	环境	书面
+yin ci	因此	书面
+ran er	然而	书面
+zong zhi	总之	书面
+sui ran	虽然	书面
+jing ran	竟然	书面
+shen zhi	甚至	书面
+tong shi	同时	书面
+mu qian	目前	书面
+zhu yao	主要	书面
+ji ben	基本	书面
+shu ru fa	输入法	专名
+ji suan ji	计算机	专名
+zhi fu bao	支付宝	专名
+wei xin	微信	专名
+hu lian wang	互联网	专名
+shou ji hao	手机号	专名
+shen fen zheng	身份证	专名
+gong zuo shi	工作室	专名
+# 竞争类：上游把某个词顶在首位，但日常输入更可能想要另一个。
+# 这几条是频率层存在的理由，也是唯一能区分「改得对」与「改坏了」的用例；
+# 期望值带主观判断，改动前先想清楚依据。
+yi shi	意识	竞争
+de shi	的事	竞争
+wu shi	务实	竞争
+shi yi	适宜	竞争
+zai xian	在线	竞争
+tong zhi	通知	竞争

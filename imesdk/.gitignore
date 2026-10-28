@@ -1,0 +1,22 @@
+*.iml
+.gradle/
+local.properties
+.DS_Store
+captures/
+.externalNativeBuild
+.idea/
+gradlew
+gradlew.bat
+gradle/wrapper/
+# 整个构建产物目录都不入库（原先只逐条列了 /build/xxx/ 子目录，会漏掉散在 build/ 根下的文件）
+/build/
+/.cxx/
+# NCNN 预编译构建依赖(90MB),clone 后从官方 releases 下载解压
+/third_party/ncnn-android/
+
+# librime 源码（构建期依赖：librime 1.11.2 + 6 个依赖子模块，约 66MB）
+# 获取方式见 MIGRATION.md / LICENSING.md，不入库
+/third_party/librime/
+
+# Boost 头文件（构建期依赖，仅头文件约 181MB，不入库）
+/third_party/boost/

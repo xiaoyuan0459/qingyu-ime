@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      主题已升级到 Material 3（依赖里本来就有 com.google.android.material:material:1.12.0，
+      此前一直在用 AppCompat 父主题，没有启用 M3）。
+      M3 用的是新颜色 token 体系，这里把常用 token 显式覆盖成白色浅色系以保持原有观感；
+      同时保留旧 attr（colorAccent / colorControlNormal 等），供仍读取它们的第三方控件使用。
+      注意：M3 主题要求宿主 Activity 继承 AppCompatActivity —— 项目内各 Activity 已核过。
+    -->
+    <!-- Shared structure for both palettes; a night override must retain the same controls. -->
+    <style name="Base.Qingyu.AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="homeAsUpIndicator">@drawable/ic_pref_chevron_left</item>
+        <item name="android:homeAsUpIndicator">@drawable/ic_pref_chevron_left</item>
+        <item name="preferenceTheme">@style/ThemeOverlay.AppTheme.Preference</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.AppTheme.MaterialAlertDialog</item>
+        <item name="sliderStyle">@style/Widget.Qingyu.Slider</item>
+    </style>
+
+    <style name="Theme.AppTheme" parent="Base.Qingyu.AppTheme">
+        <!-- ===== Material3 颜色 token ===== -->
+        <item name="colorPrimary">@color/pref_accent</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorPrimaryContainer">#D6E3FF</item>
+        <item name="colorOnPrimaryContainer">#001B3D</item>
+        <item name="colorSecondary">@color/pref_accent</item>
+        <item name="colorOnSecondary">@android:color/white</item>
+        <item name="colorSurface">@android:color/white</item>
+        <item name="colorOnSurface">@color/pref_title_text</item>
+        <item name="colorSurfaceVariant">#F5F5F5</item>
+        <item name="colorOnSurfaceVariant">#6B6B6B</item>
+        <item name="colorOutline">#E0E0E0</item>
+        <item name="colorOutlineVariant">#EDEDED</item>
+        <item name="android:colorBackground">@android:color/white</item>
+
+        <!-- ===== 兼容层：旧 attr（部分控件/第三方库仍读取） ===== -->
+        <item name="colorAccent">@color/pref_accent</item>
+        <item name="colorControlNormal">#242424</item>
+        <item name="android:colorPrimary">@color/pref_accent</item>
+        <item name="android:colorAccent">@color/pref_accent</item>
+
+        <!-- ===== 字体与系统栏 ===== -->
+        <item name="android:navigationBarColor">@android:color/white</item>
+        <item name="android:statusBarColor">@android:color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+
+    </style>
+
+    <!--
+      参考基线的滑条：与开关同厚的胶囊轨道（走过的一段是强调蓝、没走过的是浅灰）
+      + 白底蓝环圆钮，拖动时不弹数值气泡。
+      Material3 的滑条默认钮是一根竖条、轨道末端还带一个终止圆点，都要按基线改回去。
+    -->
+    <style name="Widget.Qingyu.Slider" parent="Widget.Material3.Slider">
+        <item name="trackHeight">@dimen/pref_slider_track_height</item>
+        <item name="trackCornerRadius">@dimen/pref_slider_track_corner</item>
+        <item name="trackColorActive">@color/pref_accent</item>
+        <item name="trackColorInactive">@color/pref_slider_track_inactive</item>
+        <item name="thumbColor">@android:color/white</item>
+        <item name="thumbWidth">@dimen/pref_slider_thumb_diameter</item>
+        <item name="thumbHeight">@dimen/pref_slider_thumb_diameter</item>
+        <item name="thumbStrokeColor">@color/pref_accent</item>
+        <item name="thumbStrokeWidth">@dimen/pref_slider_thumb_stroke</item>
+        <item name="thumbTrackGapSize">0dp</item>
+        <!-- 轨道末端那个终止圆点是 M3 滑条自带的，基线里没有 -->
+        <item name="trackStopIndicatorSize">0dp</item>
+        <item name="haloColor">@android:color/transparent</item>
+        <item name="labelBehavior">gone</item>
+    </style>
+
+    <style name="Theme.CropActivityTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">?android:attr/colorPrimary</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+
+    <!--
+      ============================================================
+      设置页视觉层次（对齐参考图）
+      ============================================================
+      参考图的三层文字结构：
+        分组标题 = 灰色小字
+        主标题   = 近黑 + 中黑
+        副标题   = 灰色小字
+      AndroidX preference 1.2.1 没有 Material3 版本的主题（该库已进入维护模式，
+      实测 material:1.12.0 的 AAR 里 Preference 相关 style 为 0 条），
+      所以基于它自带的 PreferenceThemeOverlay.v14.Material 逐项覆盖。
+      >>> 改这一处，全部设置页同时生效 <<<
+      ============================================================
+    -->
+    <style name="ThemeOverlay.AppTheme.Preference" parent="PreferenceThemeOverlay.v14.Material">
+        <item name="preferenceStyle">@style/AppPreference</item>
+        <item name="preferenceCategoryStyle">@style/AppPreferenceCategory</item>
+        <!-- 分组标题：默认取 colorAccent（蓝），参考基线要求灰色小字，这里改掉 -->
+        <item name="preferenceCategoryTitleTextColor">@color/pref_category_text</item>
+        <item name="preferenceCategoryTitleTextAppearance">@style/TextAppearance.AppTheme.PrefCategoryTitle</item>
+    </style>
+
+    <!--
+      Preference 的 style 只会被解析成 android:layout / android:widgetLayout / android:icon 等
+      少量属性，写在这里的 android:textSize、android:textStyle、android:textColor 不会落到
+      行内的那个 TextView 上（布局是用无 AttributeSet 的方式 inflate 的）。
+      所以行内文字一律走 @layout/preference_ime 里的 android:textAppearance，
+      这里只负责换布局。
+    -->
+    <style name="AppPreference" parent="Preference.Material">
+        <item name="android:layout">@layout/preference_ime</item>
+    </style>
+
+    <style name="AppPreferenceCategory" parent="Preference.Category.Material">
+        <item name="android:layout">@layout/preference_category_ime</item>
+    </style>
+
+    <!-- 行主标题：实测参考基线墨迹密度 0.39，介于常规与加粗之间 → 17sp 中黑 -->
+    <style name="TextAppearance.AppTheme.PrefTitle" parent="">
+        <item name="android:textSize">@dimen/pref_text_title_size</item>
+        <item name="android:textColor">@color/pref_title_text</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- 行副标题：14sp 灰 -->
+    <style name="TextAppearance.AppTheme.PrefSummary" parent="">
+        <item name="android:textSize">@dimen/pref_text_summary_size</item>
+        <item name="android:textColor">@color/pref_summary_text</item>
+    </style>
+
+    <!-- 应用栏标题：19sp 中黑，左对齐 -->
+    <style name="TextAppearance.AppTheme.AppbarTitle" parent="">
+        <item name="android:textSize">@dimen/pref_appbar_title_size</item>
+        <item name="android:textColor">@color/pref_title_text</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- 分组标题文字外观：13sp 常规 -->
+    <style name="TextAppearance.AppTheme.PrefCategoryTitle" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textSize">@dimen/pref_text_category_size</item>
+        <item name="android:textColor">@color/pref_category_text</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <!--
+      副标题灰色小字。
+      注意：AndroidX preference 的布局里把副标题样式**硬编码**写成
+        style="@style/PreferenceSummaryTextStyle"
+      （不是 ?attr/ 引用），所以无法从主题覆盖，只能同名覆盖该 style。
+      库在 values-v21 里还有一份 v21 变体（minSdk 23，设备都会走那份），
+      因此 values-v21/themes.xml 里也必须同步覆盖一份。
+    -->
+    <style name="PreferenceSummaryTextStyle">
+        <item name="android:textAppearance">?android:attr/textAppearanceSmall</item>
+        <item name="android:textColor">@color/pref_summary_text</item>
+    </style>
+
+    <!-- 设置页内的弹窗走 Material3 -->
+    <style name="ThemeOverlay.AppTheme.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog"/>
+
+</resources>

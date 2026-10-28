@@ -1,0 +1,17 @@
+{
+  "librime": {
+    "url": "https://github.com/rime/librime.git",
+    "revision": "5b09f35bab12683d8ed5e8663c18c940e971b954",
+    "version": "1.11.2"
+  },
+  "boost": {
+    "url": "https://archives.boost.io/release/1.87.0/source/boost_1_87_0.tar.gz",
+    "sha256": "f55c340aa49763b1925ccf02b2e83f35fdcf634c9d5164a2acb87540173c741d",
+    "version": "1.87.0"
+  },
+  "ncnn": {
+    "url": "https://github.com/Tencent/ncnn/releases/download/20260526/ncnn-20260526-android-vulkan.zip",
+    "sha256": "26909c92eed35afed4a966b5e9e503fcb0a529691ea3f910ec2c94a4fff52804",
+    "version": "20260526"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "note": "手写图像训练用的字形来源。全部为 SIL Open Font License 1.1，允许用于训练与再分发模型；不使用网络搜图/爬虫结果。",
+  "version": 1,
+  "fonts": [
+    {
+      "id": "mashanzheng",
+      "family": "Ma Shan Zheng",
+      "kind": "hand",
+      "style": "毛笔楷书",
+      "file": "MaShanZheng-Regular.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/mashanzheng/MaShanZheng-Regular.ttf",
+      "license": "OFL-1.1",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/mashanzheng/OFL.txt"
+    },
+    {
+      "id": "zhimangxing",
+      "family": "Zhi Mang Xing",
+      "kind": "hand",
+      "style": "硬笔行书",
+      "file": "ZhiMangXing-Regular.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/zhimangxing/ZhiMangXing-Regular.ttf",
+      "license": "OFL-1.1",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/zhimangxing/OFL.txt"
+    },
+    {
+      "id": "longcang",
+      "family": "Long Cang",
+      "kind": "hand",
+      "style": "硬笔行楷",
+      "file": "LongCang-Regular.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/longcang/LongCang-Regular.ttf",
+      "license": "OFL-1.1",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/longcang/OFL.txt"
+    },
+    {
+      "id": "liujianmaocao",
+      "family": "Liu Jian Mao Cao",
+      "kind": "hand",
+      "style": "草书",
+      "file": "LiuJianMaoCao-Regular.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/liujianmaocao/LiuJianMaoCao-Regular.ttf",
+      "license": "OFL-1.1",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/liujianmaocao/OFL.txt"
+    },
+    {
+      "id": "lxgwwenkai",
+      "family": "LXGW WenKai",
+      "kind": "hand",
+      "style": "硬笔楷体",
+      "file": "LXGWWenKai-Regular.ttf",
+      "url": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.520/LXGWWenKai-Regular.ttf",
+      "license": "OFL-1.1",
+      "license_url": "https://raw.githubusercontent.com/lxgw/LxgwWenKai/main/OFL.txt"
+    },
+    {
+      "id": "kleeone",
+      "family": "Klee One",
+      "kind": "hand",
+      "style": "硬笔楷书",
+      "file": "KleeOne-Regular.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/kleeone/KleeOne-Regular.ttf",
+      "license": "OFL-1.1",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/kleeone/OFL.txt"
+    },
+    {
+      "id": "notosanssc",
+      "family": "Noto Sans SC",
+      "kind": "print",
+      "style": "黑体",
+      "file": "NotoSansSC-VF.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+      "license": "OFL-1.1",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/OFL.txt",
+      "weights": [300, 400, 700]
+    },
+    {
+      "id": "notoserifsc",
+      "family": "Noto Serif SC",
+      "kind": "print",
+      "style": "宋体",
+      "file": "NotoSerifSC-VF.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf",
+      "license": "OFL-1.1",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifsc/OFL.txt",
+      "weights": [300, 400, 700]
+    }
+  ]
+}

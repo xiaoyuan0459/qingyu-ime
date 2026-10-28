@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:startDestination="@id/settingsFragment">
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.ImeSettingsFragment"
+        android:label="@string/settings_main_title">
+        <action
+            android:id="@+id/action_settingsFragment_to_inputSettingsFragment"
+            app:destination="@id/inputSettingsFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_toolboxFragment"
+            app:destination="@id/toolboxFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_handwritingSettingsFragment"
+            app:destination="@id/handwritingSettingsFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_voiceSettingsFragment"
+            app:destination="@id/voiceSettingsFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_themeSettingsFragment"
+            app:destination="@id/themeFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_keyboardFeedbackFragment"
+            app:destination="@id/keyboardFeedbackFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_keyboardSettingFragment"
+            app:destination="@id/keyboardSettingFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_clipboardSettingsFragment"
+            app:destination="@id/clipboardSettingsFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_aboutFragment"
+            app:destination="@id/aboutFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_sidebarSymbolFragment"
+            app:destination="@id/sidebarSymbolFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_otherSettingsFragment"
+            app:destination="@id/otherSettingsFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_dataSettingsFragment"
+            app:destination="@id/dataSettingsFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_setupActivity"
+            app:destination="@id/setupActivity" />
+    </fragment>
+    <fragment
+        android:id="@+id/sidebarSymbolFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.SidebarSymbolFragment"
+        android:label="@string/setting_ime_prefixs" />
+    <fragment
+        android:id="@+id/inputSettingsFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.InputSettingsFragment"
+        android:label="@string/setting_ime_input" />
+    <fragment
+        android:id="@+id/toolboxFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.ToolboxFragment"
+        android:label="@string/toolbox" />
+    <fragment
+        android:id="@+id/handwritingSettingsFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.HandwritingSettingsFragment"
+        android:label="@string/ime_settings_handwriting" />
+    <fragment
+        android:id="@+id/voiceSettingsFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.VoiceSettingsFragment"
+        android:label="@string/ime_settings_voice" />
+    <fragment
+        android:id="@+id/keyboardFeedbackFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.KeyboardFeedbacksFragment"
+        android:label="@string/keyboard_feedback" />
+    <fragment
+        android:id="@+id/themeFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.ThemeFragment"
+        android:label="@string/theme" />
+    <fragment
+        android:id="@+id/clipboardSettingsFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.ClipboardSettingsFragment"
+        android:label="@string/clipboard" />
+    <fragment
+        android:id="@+id/aboutFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.AboutFragment"
+        android:label="@string/about" >
+        <action
+            android:id="@+id/action_aboutFragment_to_legalDocumentFragment"
+            app:destination="@id/legalDocumentFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/legalDocumentFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.LegalDocumentFragment"
+        android:label="{legalTitle}" >
+        <argument
+            android:name="legalTitle"
+            app:argType="string" />
+        <argument
+            android:name="rawRes"
+            app:argType="integer" />
+    </fragment>
+    <fragment
+        android:id="@+id/keyboardSettingFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.KeyboardSettingFragment"
+        android:label="@string/setting_ime_keyboard" />
+    <fragment
+        android:id="@+id/otherSettingsFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.OtherSettingsFragment"
+        android:label="@string/setting_ime_other" />
+    <fragment
+        android:id="@+id/dataSettingsFragment"
+        android:name="com.qingyu.imemodule.ui.fragment.DataSettingsFragment"
+        android:label="@string/dictionary_and_backup" />
+    <activity
+        android:id="@+id/setupActivity"
+        android:name="com.qingyu.imemodule.ui.setup.SetupActivity"
+        android:label="activity_setup"/>
+</navigation>

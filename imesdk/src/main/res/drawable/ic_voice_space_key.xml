@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="24">
+    <!-- 对齐搜狗魅族版空格键语音字形（420dpi 实测，1unit≈1px）：实心胶囊麦头 + U 形碗托 + 短杆，
+         底部宽托架约 45dp。整组为固定 dp 尺寸，居中绘制，不随空格键宽缩放（见 TextKeyboard 的绘制逻辑）。 -->
+    <!-- 麦头：5×9.2dp 胶囊 -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M21.5,2.5 a2.5,2.5 0 0 1 5,0 v4.2 a2.5,2.5 0 0 1 -5,0 z" />
+    <!-- 碗托：外宽 8.6dp、描边 1.1dp 的 U 形，开口向上 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.1"
+        android:strokeLineCap="round"
+        android:pathData="M20.25,5.4 v0.85 a3.75,3.75 0 0 0 7.5,0 v-0.85" />
+    <!-- 短杆：1.7×2.7dp，从碗托中穿出 -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M23.15,9.8 h1.7 v2.7 h-1.7 z" />
+    <!-- 托架：外宽 44.9dp、描边 2.3dp、端壁高 4.6dp、圆角连接 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M2.7,17.4 v2.45 a1.5,1.5 0 0 0 1.5,1.5 h39.6 a1.5,1.5 0 0 0 1.5,-1.5 v-2.45" />
+</vector>

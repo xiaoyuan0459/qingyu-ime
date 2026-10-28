@@ -1,0 +1,2 @@
+# Keep third-party license bytes and upstream whitespace intact for manifest SHA-256 checks.
+imesdk/src/main/assets/licenses/native/* -text -whitespace

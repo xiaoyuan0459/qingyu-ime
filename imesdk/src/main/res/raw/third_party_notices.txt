@@ -1,0 +1,85 @@
+轻语输入法 · 第三方开源声明
+版本 v3（2026-10-21）
+
+本应用整体以 GPL-3.0-only 许可分发（见「开放许可」页面）。下列第三方组件保留其各自的许可条款，本页面按许可要求保留其版权声明与条件。逐条人工审计过程见仓库内 LICENSING.md；实际使用与设计参考的边界见 CREDITS.md。
+
+
+一、原生代码（静态链入 libqingyu_rime.so 与 libqingyu_hw_jni.so）
+
+· librime 1.11.2 —— BSD-3-Clause。Rime 输入引擎，本工程自行编译。
+· glog —— BSD-3-Clause。librime 依赖的日志库。
+· LevelDB —— BSD-3-Clause。librime 的用户词库存储后端。
+· marisa-trie —— BSD-2-Clause / LGPL-2.1 双许可，本应用使用 BSD-2 分支。
+· yaml-cpp —— MIT。
+· OpenCC —— Apache-2.0。简繁与 emoji 词条转换。
+· RapidJSON —— MIT。
+· Boost 1.87.0 —— Boost Software License 1.0。仅使用头文件。
+· ncnn（Android 预编译静态库）—— BSD-3-Clause。手写识别的推理框架。
+· 手写识别模型（qingyu-hw-image-v1）—— 本工程自训练，随项目整体 GPL-3.0-only 分发。
+  训练语料仅由下列 OFL-1.1 字体离线渲染生成，不含 CASIA/HWDB 等受限数据集；
+  字体本身不随包分发，仅用于生成训练图像。
+  · Ma Shan Zheng（马善政毛笔楷书）—— SIL Open Font License 1.1
+  · Zhi Mang Xing（志莽行书）—— SIL Open Font License 1.1
+  · Long Cang（龙藏体）—— SIL Open Font License 1.1
+  · Liu Jian Mao Cao（刘建毛草）—— SIL Open Font License 1.1
+  · LXGW WenKai（霞鹜文楷）—— SIL Open Font License 1.1
+  · Klee One —— SIL Open Font License 1.1
+  · Noto Sans SC / Noto Serif SC —— SIL Open Font License 1.1
+· GoogleTest —— BSD-3-Clause。仅在构建期存在，未链入发布产物（构建时关闭测试）。
+
+上述原生组件的许可与版权全文随 APK assets/licenses/native/ 分发，并附在本页面末尾；来源、精确版本与 SHA-256 见该目录的 manifest.json。
+
+
+二、JVM / Android 依赖
+
+· Kotlin 标准库与编译器运行时 —— Apache-2.0，附 CLASSPATH 例外。具体版本随项目工具链解析，以发行 SBOM 为准。
+· kotlinx-coroutines 1.9.0、kotlinx-serialization-json 1.6.2 —— Apache-2.0。
+· AndroidX：appcompat 1.7.0、constraintlayout 2.2.0、preference-ktx 1.2.1、navigation 2.8.5、emoji2 与 emoji2-views 1.5.0、exifinterface 1.3.7、room 2.6.1 —— Apache-2.0。
+· com.google.android.material 1.12.0 —— Apache-2.0。
+· com.google.android.flexbox 3.0.0 —— Apache-2.0。
+· com.louiscad.splitties 3.0.0（resources、views-dsl-recyclerview、views-dsl-constraintlayout、views-dsl-appcompat）—— Apache-2.0。
+· Vosk Android 0.3.47（com.alphacephei:vosk-android）—— Apache-2.0。本地离线语音识别库。
+· JNA 5.13.0 —— LGPL-2.1-or-later 或 Apache-2.0（双许可）。Vosk Android 的传递依赖。
+· JUnit 4.13.2 —— EPL-1.0，仅测试使用，不进发布包。
+
+
+三、随包数据与词库
+
+· 汉字拼音表 —— 取自 pinyin-data v0.15.0（MIT），其许可声明已内嵌在 assets/pinyin_table.txt 的文件头。上游 github.com/mozillazg/pinyin-data
+· 默认词库包（雾凇拼音 rime-ice）—— GPL-3.0-only，固定 revision 9e66b07。因 GPL 的对应源码要求，词库包内随附 SOURCE.md（指回词典源文件与编译脚本）、LICENSE 全文、manifest.json（含 SPDX 标识、revision、下载入口与逐文件 SHA-256）。上游 github.com/iDvel/rime-ice
+· 五笔画码表（rime-stroke）—— LGPL-3.0-or-later，固定 revision 1e8fff9b。主码表源自台湾 CNS11643 国家全字库，附码表源自北大中文论坛；归属声明以 AUTHORS.rime-stroke 随包分发，不得移除。上游 github.com/rime/rime-stroke
+· 词库基础数据（rime-essay）—— LGPL-3.0，许可证文件随包。上游 github.com/iDvel/rime-essay
+· 简繁 / emoji 转换数据 —— 来自 OpenCC（Apache-2.0）。
+· Vosk 中文小模型 vosk-model-small-cn-0.22、英文小模型 vosk-model-small-en-us-0.15 —— Apache-2.0。不随安装包分发；用户首次开启“离线语音”时从 alphacephei.com/vosk/models 下载，可在设置中删除。
+· 可选词库包（白霜 rime-frost）—— GPL-3.0-or-later，固定 revision 96278d8。作为独立可导入包分发，不随安装包内置。上游 github.com/gaboolic/rime-frost
+
+
+四、触感实现
+
+键盘触感采用 Android 公共 API。RichTap SDK 及其网络模块已移除，不随本版本 APK 分发。
+
+
+五、上游项目代码
+
+· 本工程的界面骨架与输入框架源自开源项目 YuyanIme 及其 SDK 子模块（BSD-3-Clause，Copyright (c) 2026 王莹）。按 BSD-3-Clause 的要求保留上述版权声明、条件列表和免责声明；本应用与原作者之间不存在背书或担保关系。
+· 自 2026-09 起，Rime 引擎接入层、词库分发机制、手写识别引擎、品牌与图标均已在本仓库内重写或替换，具体范围见 MIGRATION.md 与 LICENSING.md。
+· JNI 绑定层原继承自同文 Trime（GPL-3.0-or-later）并存在来源不确定性，已按语义重写为 RimeSession / EngineTypes，来源问题随之消除。上游署名与对应源码获取途径见「上游项目与对应源码」页面。
+
+
+六、许可全文与对应源码
+
+本应用的 GPL-3.0-only 全文见「开放许可」页面；完整对应源码（含词库包的编译脚本与词典源文件）按 GPL 要求随发行提供，仓库地址见 设置 → 关于 → 源代码，获取途径与自行构建步骤见「上游项目与对应源码」页面。
+
+
+七、本清单的未完成项
+
+以下事项在 v0.1 Alpha 发布前必须补齐，此处如实登记，并与仓库 DEBT-LICENSE-01 保持一致：
+
+· imesdk 内 libs/cropper、libs/expression、libs/recyclerview 三个移植目录的原始版权头已被剥离，需逐个回到上游确认许可后补署名。
+· 键盘图标资源（icon_emojibar_* 等）的来源未记录，需确认是否需要额外署名。
+· JVM 依赖的完整版权归档与最终发行 SBOM 仍需核验；CI 已导出实际运行时依赖版本与 SHA-256 清单，该清单是审计输入，不等于已完成的许可审计。
+
+已纠正、无需再追的记录：
+
+· 手写识别模型与推理层：模型为本工程用上述 OFL 字体离线渲染训练，未使用 CASIA/HWDB 或任何来源不明的手写数据；推理层 qingyu_hw_jni.cc / QingyuHwRecognizer.java / preprocess.c 随项目整体 GPL-3.0-only 分发。字表、类别数与产物 SHA-256 记录在模型资产的 model-manifest.json，训练与转换流程见仓库 tools/handwriting/README.md。详见「上游项目与对应源码」页面。
+· OpenCC 固定 revision（e5d6c5f1）经核只提供 LICENSE 与 AUTHORS、未提供 NOTICE，Apache-2.0 第 4(d) 条的 NOTICE 义务以实际提供为条件，原「缺失 NOTICE」记录作废，不生成虚构的上游 NOTICE。ncnn 与 Boost 的许可全文已纳入随包归档。

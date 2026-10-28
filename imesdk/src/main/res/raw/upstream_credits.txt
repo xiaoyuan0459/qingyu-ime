@@ -1,0 +1,70 @@
+轻语输入法 · 上游项目与对应源码
+版本 v2（2026-10-21）
+
+本项目整体以 GPL-3.0-only 分发（见「开放许可」页面）。本页说明上游来源、署名归属，以及获取完整对应源码的途径，便于你自行构建和验证。
+
+一、关于本应用的许可
+
+本应用整体以 GPL-3.0-only 发布。该协议允许自由使用、修改与商业分发，要求保留版权与许可声明，
+并要求衍生作品同样以 GPL-3.0-only 发布。
+
+选择 GPL-3.0-only 的原因是随包分发的默认词库（雾凇拼音 rime-ice）本身即为 GPL-3.0-only：
+GPL 与 Apache-2.0 等宽松许可单向不兼容（宽松许可的代码可纳入 GPL，反之不可），
+因此词库继续内置分发时，整体须采用 GPL-3.0-only。本应用未对第三方内容施加额外限制。
+
+应用内各组件许可不同，以「第三方开源声明」页面为准。手写识别使用本工程自训练的模型，随项目整体
+以 GPL-3.0-only 分发；语音使用的 Vosk（Apache-2.0）保留各自许可，不随应用整体协议改变。
+
+
+二、上游项目
+
+本工程的界面骨架与 Android 输入框架源自开源项目 YuyanIme（https://github.com/gurecn/YuyanIme）及其 SDK 子模块，许可为 BSD-3-Clause，版权人为王莹（gurecn）。按 BSD-3-Clause 的要求，本应用保留该版权声明、许可条件与免责声明；本应用与原作者之间不存在背书或担保关系。
+
+需要区分两件事：Yuyan 以 BSD-3-Clause 授权的是它有权授权的自有源码，这不代表整个应用包都因此是 BSD-3。本应用随包分发的词库与原生引擎等第三方组件保留各自的许可，详见「第三方开源声明」。随仓库提供的继承预编译词库二进制因来源无法核验已不再打入本应用。
+
+自 2026-09 起，Rime 引擎接入层、词库分发机制、手写识别引擎、品牌与图标均已在本仓库内重写或替换。JNI 绑定层原继承自同文 Trime（GPL-3.0-or-later）并存在来源不确定性，已按语义重写为 RimeSession / EngineTypes，迁移与决策依据见仓库 MIGRATION.md 与 docs/adr/0004-整体GPL-3.0-only开源路线与上游许可义务.md。
+
+语音识别使用 Vosk（https://github.com/alphacep/vosk-api，Apache-2.0）。中英文小模型不随 APK 分发，由用户首次开启“离线语音”时从 https://alphacephei.com/vosk/models 下载，可删除。
+
+手写识别使用本工程自训练的模型 qingyu-hw-image-v1：语料由 OFL-1.1 字体离线渲染生成，推理层与模型随项目整体以 GPL-3.0-only 分发；类别数、字表哈希与产物 SHA-256 记录在模型资产的 model-manifest.json，来源与致谢见仓库 CREDITS.md 与 LICENSING.md。
+
+
+三、设计参考
+
+界面与交互研究参考魅族版搜狗输入法 10.32.39.202412161509 / versionCode 1018。只观察行为和几何，
+未复制其代码、图片、图标、皮肤、词库、模型或文案；参考素材不随源码或 APK 分发。
+完整边界见仓库 CREDITS.md。
+
+
+四、获取完整对应源码
+
+GPL-3.0 第 6 条要求：分发二进制时，提供完整对应源码，或给出获取它的书面要约。你可以任选下列途径，均无需额外申请：
+
+1. 源码仓库
+   https://github.com/xiaoyuan0459/qingyu-ime
+   该仓库包含 app 与 imesdk 的完整工程源码、自研原生层、构建脚本及原生依赖锁定文件。
+
+2. 对应某个发行版本
+   每个发行版本附源码包与校验和，页面见
+   https://github.com/xiaoyuan0459/qingyu-ime/releases
+   下载后请用发行说明中的 SHA-256 校验完整性。
+
+3. 词库对应源码
+   默认内置词库为雾凇拼音 rime-ice（GPL-3.0-only，固定 revision）。其词典源文件、编译脚本与许可证随词库包内 SOURCE.md 一起提供，并记录逐文件 SHA-256。可选白霜 rime-frost 作为独立包分发，不随本应用内置。
+
+
+五、自行构建
+
+需要 JDK 21、Python 3.11+、Git 和 Android SDK，精确版本见 docs/DEVELOPMENT.md。
+
+	git clone https://github.com/xiaoyuan0459/qingyu-ime.git
+	cd qingyu-ime
+	python tools/bootstrap-native-deps.py
+	.\gradlew.bat :app:assembleOfflineDebug        # Windows
+	./gradlew :app:assembleOfflineDebug           # Linux / macOS
+
+原生依赖按 tools/native-deps.lock.json 固定 revision 与 SHA-256，构建脚本不会覆盖已有依赖目录。构建记录、版本号与已知限制见仓库文档索引 docs/README.md。
+
+六、许可疑问
+
+本页面说明工程事实，不构成法律意见。发现许可归属问题，请通过仓库 Issues 反馈；涉及分发合规的具体问题建议由法务复核。

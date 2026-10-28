@@ -1,0 +1,59 @@
+# 五笔画。词库来自 rime 官方仓 rime/rime-stroke（LGPL-3.0-or-later，
+# 主码表源自台湾 CNS11643 全字库、附码表源自北大中文论坛），
+# 由 tools/build-rime-pack.py 从 build/upstream/rime-stroke 取源编译。
+#
+# 上游用小写 hspnz 作码，本应用的笔画键盘送大写码（InputView 给笔画/九宫格
+# 键盘带 META_CAPS_LOCK_ON），所以这里用 xform 把码整体翻成大写。
+# 用 xform 而非 derive 是刻意的：逐字母 derive 会让每个笔画码产生 2^码长 个
+# 大小写变体，棱镜会爆炸。
+schema:
+  name: "笔画输入"
+  schema_id: stroke
+engine:
+  filters:
+    - "simplifier@emoji"
+    - "simplifier@traditionalize"
+    - uniquifier
+  processors:
+    - ascii_composer
+    - recognizer
+    - speller
+    - punctuator
+    - selector
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - echo_translator
+    - table_translator
+menu:
+  page_size: 100
+punctuator:
+  symbols:
+    "/": ["@", "＃", "＊", "＋", "……", "〜", "（", "）", "、", "/"]
+recognizer:
+  patterns:
+    punct: "^/([0-9]|10|[A-Za-z]*?)$"
+speller:
+  alphabet: "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA`/"
+  delimiter: " '"
+  algebra:
+    - xform/h/H/
+    - xform/s/S/
+    - xform/p/P/
+    - xform/n/N/
+    - xform/z/Z/
+traditionalize:
+  opencc_config: s2t.json
+  option_name: traditionalization
+translator:
+  comment_format:
+    - xlit/HSPNZ/⼀⼁⼃⼂⼄/
+  dictionary: stroke
+  preedit_format:
+    - xlit/HSPNZ/⼀⼁⼃⼂⼄/

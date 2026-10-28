@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 新旧页面同步结束，避免旧页面提前移除时露出底层背景。 -->
+    <integer name="settings_motion_duration_enter">220</integer>
+    <integer name="settings_motion_duration_exit">220</integer>
+</resources>

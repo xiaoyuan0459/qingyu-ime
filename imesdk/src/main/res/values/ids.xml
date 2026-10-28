@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="accessibility_toolbar_move_before" type="id"/>
+    <item name="accessibility_toolbar_move_after" type="id"/>
+    <item name="clipboard_adapter_content" type="id"/>
+    <item name="accessibility_clipboard_split" type="id"/>
+    <item name="clipboard_adapter_top_tips" type="id"/>
+    <item name="et_prefix_setting_key" type="id"/>
+    <item name="et_prefix_setting_value" type="id"/>
+</resources>

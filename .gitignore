@@ -1,0 +1,61 @@
+*.iml
+.gradle/
+local.properties
+.DS_Store
+# 构建目录须锚定；源码或运行时资产中的同名 build/ 目录不能全局忽略。
+/build/
+captures/
+.externalNativeBuild
+.idea/
+*.jks
+/keystore/
+*.keystore
+*.apk
+*.aab
+.env
+.env.*
+!.env.example
+/.kotlin
+*.log
+# NDK/CMake 的中间产物目录
+imesdk/.cxx/
+
+# JVM 崩溃日志（构建 OOM 时产生）
+hs_err_pid*.log
+replay_pid*.log
+
+# 本机工具状态、临时诊断和开发会话记录
+.mimosa/
+/.tmp/
+/.graphflow-cache/
+/graphflow-out/
+/.qoder-credits/
+/.workbuddy/
+/.workbuddy-ai/
+/.zcode/
+/PROJECT_LOG.md
+/docs/testing/
+
+# 本地自用的协作规则、过程记录与发布清单：留在工作区，不进公开仓库
+/AGENTS.md
+/docs/REPOSITORY_HYGIENE.md
+/docs/OPEN_SOURCE_PLAN.md
+/docs/PROJECT_PLAN.md
+/docs/UI_DESIGN_PRINCIPLES.md
+/docs/*_IMPROVEMENTS.md
+/docs/TOOLBOX_TRANSITION_ANALYSIS.md
+/imesdk/docs/手写识别开源迁移实施计划.md
+/imesdk/docs/手写识别引擎替换方案.md
+__pycache__/
+*.py[cod]
+
+# 设计探索和其他产品参考图；正式品牌源文件保留在 docs/brand/
+/generated-images/
+/vibe_images/
+/ui参考/
+/更多ui细节/
+/images/
+
+# 手写训练工具的本地状态：字体、数据集、模型、Python 环境，都不进仓库
+/tools/handwriting/.cache/
+/tools/handwriting/.venv/

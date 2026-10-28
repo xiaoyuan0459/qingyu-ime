@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  分组标题。参考基线的分组之间是一条内缩 18dp 的发丝线 + 16dp 留白 + 灰色小字；
+  线放在分组顶部，由 ImePreferenceCategory 决定首分组是否隐藏（应用栏底部已有一条通栏线）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:baselineAligned="false"
+    android:orientation="vertical">
+
+    <View
+        android:id="@+id/pref_group_divider"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/pref_divider_height"
+        android:layout_marginStart="@dimen/pref_row_padding_horizontal"
+        android:layout_marginEnd="@dimen/pref_row_padding_horizontal"
+        android:background="@color/pref_divider" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:paddingStart="@dimen/pref_row_padding_horizontal"
+        android:paddingTop="@dimen/pref_category_padding_top"
+        android:paddingEnd="@dimen/pref_row_padding_horizontal"
+        android:paddingBottom="@dimen/pref_category_padding_bottom">
+
+        <include layout="@layout/preference_icon_frame_ime" />
+
+        <TextView
+            android:id="@android:id/title"
+            style="@style/TextAppearance.AppTheme.PrefCategoryTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAlignment="viewStart" />
+
+    </LinearLayout>
+
+</LinearLayout>

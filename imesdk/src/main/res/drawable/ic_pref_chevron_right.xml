@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 行尾箭头：实测参考基线墨迹 6x10dp，故画布即墨迹，不再靠 ImageView 缩放定位 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:autoMirrored="true"
+    android:width="8dp"
+    android:height="12dp"
+    android:viewportWidth="8"
+    android:viewportHeight="12">
+    <path
+        android:pathData="M2.5,2 L6.5,6 L2.5,10"
+        android:strokeColor="@color/pref_chevron"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

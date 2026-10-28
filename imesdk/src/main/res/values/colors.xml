@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="skb_elevation_color">#bfbfbf</color>
+    <color name="red_400">#EF5350</color>
+    <color name="color_gray">#B4B4B4</color>
+
+    <color name="x_recycler_color_text_gray">#FF777777</color>
+    <color name="x_recycler_color_loading_color1">#55777777</color>
+    <color name="x_recycler_color_loading_color2">#B1777777</color>
+    <color name="x_recycler_color_loading_color3">#FF777777</color>
+
+    <!-- ===== 设置页（Preference）视觉层次 —— 对齐参考基线实测值 ===== -->
+    <!-- 主标题：近黑 + 加粗 -->
+    <color name="pref_title_text">#1A1A1A</color>
+    <!-- 副标题：灰色小字 -->
+    <color name="pref_summary_text">#8A8A8A</color>
+    <!-- 分组标题：灰色小字 -->
+    <color name="pref_category_text">#999999</color>
+    <!-- 强调色：开关轨道、滑条进度、可点文字 -->
+    <color name="pref_accent">#FF1368FB</color>
+    <!-- 开关关闭态轨道 -->
+    <color name="pref_switch_track_off">#FFE5E5E5</color>
+    <!-- 滑条未走过的那段轨道 -->
+    <color name="pref_slider_track_inactive">#FFF0F0F0</color>
+    <!-- 发丝分隔线：应用栏底部通栏一条，分组之间内缩一条 -->
+    <color name="pref_divider">#FFDADCE0</color>
+    <!-- 行尾箭头 -->
+    <color name="pref_chevron">#FF979797</color>
+    <!-- 应用栏返回箭头 -->
+    <color name="pref_nav_icon">#FF222222</color>
+
+    <!-- ===== 「手写设置」笔迹色块 + 预览区底色 ===== -->
+    <color name="hw_color_white">#FFFFFFFF</color>
+    <color name="hw_color_gray">#FF808080</color>
+    <color name="hw_color_black">#FF000000</color>
+    <color name="hw_color_red">#FFF5222D</color>
+    <color name="hw_color_orange">#FFFF8800</color>
+    <color name="hw_color_yellow">#FFFFEB00</color>
+    <color name="hw_color_green">#FF6ABE30</color>
+    <color name="hw_color_cyan">#FF00E5FF</color>
+    <color name="hw_color_blue">#FF2B54C8</color>
+    <color name="hw_color_purple">#FF9C27B0</color>
+    <color name="hw_preview_background">#FFD8D8D8</color>
+
+    <!-- ===== 启动图标（「轻」字标）配色 ===== -->
+    <!-- 与品牌主色一致：米白底 + 墨绿字。debug 变体同样用米白底，
+         避免与正式版图标外观不一致（用户会拿 debug 包自用）。 -->
+    <color name="icon_bg">#FFF6F4EF</color>
+    <color name="icon_bg_debug">#FFF6F4EF</color>
+</resources>

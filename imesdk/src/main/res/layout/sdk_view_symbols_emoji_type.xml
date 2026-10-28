@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/ll_symbols_emoji_type_item"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_alignParentBottom="true"
+    android:orientation="horizontal">
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tab_symbols_emoji_type"
+        android:theme="@style/Theme.AppTheme"
+        android:layout_width="0dp"
+        android:layout_height="40dp"
+        android:layout_weight="1"
+        app:tabMaxWidth="0dp"
+        app:tabIndicator="@null"
+        app:tabPaddingStart="14dp"
+        app:tabPaddingEnd="14dp"
+        app:tabMode="scrollable"/>
+    <ImageView
+        android:id="@+id/iv_symbols_emoji_type_delete"
+        android:layout_width="48dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center"
+        android:scaleType="centerInside"
+        android:contentDescription="@string/delete"
+        android:src="@drawable/sdk_skb_key_delete_icon"/>
+</LinearLayout>

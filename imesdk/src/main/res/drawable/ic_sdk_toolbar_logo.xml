@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="24dp" android:height="24dp">
+        <shape><solid android:color="@android:color/transparent" /></shape>
+    </item>
+    <!-- Approved Qingyu feather artwork, centered with the same visible height as toolbar icons. -->
+    <item android:width="16dp" android:height="20dp" android:gravity="center">
+        <bitmap android:src="@drawable/ic_sdk_toolbar_brand" android:filter="true" />
+    </item>
+</layer-list>

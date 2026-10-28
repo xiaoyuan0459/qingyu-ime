@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  debug 变体专属清单：只注册自研引擎的自检入口，不进发布包。
+  见 app/src/debug/java/com/qingyu/inputmethod/debug/EngineSelfCheckActivity.kt
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name="com.qingyu.inputmethod.debug.EngineSelfCheckActivity"
+            android:exported="true"
+            android:label="引擎自检"
+            android:theme="@android:style/Theme.Material.Light" />
+    </application>
+</manifest>

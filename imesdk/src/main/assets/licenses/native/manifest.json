@@ -1,0 +1,106 @@
+[
+  {
+    "component": "librime",
+    "revision": "5b09f35bab12683d8ed5e8663c18c940e971b954",
+    "source": "https://github.com/rime/librime.git",
+    "upstreamFile": "LICENSE",
+    "file": "librime-LICENSE",
+    "sha256": "44c39955377bb15d825f8142de500ed832309178ce34624c5d1a1f00761bb1ee"
+  },
+  {
+    "component": "glog",
+    "revision": "34b8da6496aec6a98277808701cfa834fae9801f",
+    "source": "https://github.com/google/glog.git",
+    "upstreamFile": "COPYING",
+    "file": "glog-COPYING",
+    "sha256": "ef6456425d4348d0e131263e0c577eba268c6069a2f311cfbb0ae30ae37b9c7a"
+  },
+  {
+    "component": "glog",
+    "revision": "34b8da6496aec6a98277808701cfa834fae9801f",
+    "source": "https://github.com/google/glog.git",
+    "upstreamFile": "AUTHORS",
+    "file": "glog-AUTHORS",
+    "sha256": "35f26b00b34cd55baf77f6eb3dc5f20a832a213f97916e1bda797d4ef6923b96"
+  },
+  {
+    "component": "leveldb",
+    "revision": "99b3c03b3284f5886f9ef9a4ef703d57373e61be",
+    "source": "https://github.com/google/leveldb.git",
+    "upstreamFile": "LICENSE",
+    "file": "leveldb-LICENSE",
+    "sha256": "2d0cc47b872bf81f665313243081d46807bfc3fca2ec91fa093068e271598247"
+  },
+  {
+    "component": "leveldb",
+    "revision": "99b3c03b3284f5886f9ef9a4ef703d57373e61be",
+    "source": "https://github.com/google/leveldb.git",
+    "upstreamFile": "AUTHORS",
+    "file": "leveldb-AUTHORS",
+    "sha256": "a725129c527da89c3c2db50fff75a578e30fafd24853154774ee1c3be76379a9"
+  },
+  {
+    "component": "marisa-trie",
+    "revision": "0d4e8ab58eec355facf8f65ff11ef811b330e373",
+    "source": "https://github.com/rime/marisa-trie.git",
+    "upstreamFile": "COPYING.md",
+    "file": "marisa-trie-COPYING.txt",
+    "sha256": "6d417c47d2650cb4afad4e7a9bc29be3ad266459e8842833188d0bb02f110faf"
+  },
+  {
+    "component": "marisa-trie",
+    "revision": "0d4e8ab58eec355facf8f65ff11ef811b330e373",
+    "source": "https://github.com/rime/marisa-trie.git",
+    "upstreamFile": "AUTHORS",
+    "file": "marisa-trie-AUTHORS",
+    "sha256": "a49e32e647e3a74e11abd3633f9bdbcddfd7749426dae2154c5ffe5bce75463f"
+  },
+  {
+    "component": "yaml-cpp",
+    "revision": "f7320141120f720aecc4c32be25586e7da9eb978",
+    "source": "https://github.com/jbeder/yaml-cpp.git",
+    "upstreamFile": "LICENSE",
+    "file": "yaml-cpp-LICENSE",
+    "sha256": "c06fd4ee9241e3b6841fcee5d471475be412c822ddf2876af17127acd426c011"
+  },
+  {
+    "component": "opencc",
+    "revision": "e5d6c5f1b78e28a5797e7ad3ede3513314e544b7",
+    "source": "https://github.com/BYVoid/OpenCC.git",
+    "upstreamFile": "LICENSE",
+    "file": "opencc-LICENSE",
+    "sha256": "d4d265b6ef2cfd0fb645acee9d9092103d5fadbdae887eb87c58a5d9b0780e19"
+  },
+  {
+    "component": "opencc",
+    "revision": "e5d6c5f1b78e28a5797e7ad3ede3513314e544b7",
+    "source": "https://github.com/BYVoid/OpenCC.git",
+    "upstreamFile": "AUTHORS",
+    "file": "opencc-AUTHORS",
+    "sha256": "488a40cff1526bdc30ebffe7bd608f578aaecf35f4c60eacd4ebfb30e35ee442"
+  },
+  {
+    "component": "boost",
+    "version": "1.87.0",
+    "source": "https://archives.boost.io/release/1.87.0/source/boost_1_87_0.tar.gz",
+    "upstreamFile": "LICENSE_1_0.txt",
+    "file": "boost-LICENSE_1_0.txt",
+    "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566"
+  },
+  {
+    "component": "ncnn",
+    "version": "20260526",
+    "source": "https://raw.githubusercontent.com/Tencent/ncnn/20260526/LICENSE.txt",
+    "upstreamFile": "LICENSE.txt",
+    "file": "ncnn-LICENSE.txt",
+    "sha256": "7c974bac98848df46be1af5bdaa3c3c9c01f6082a90f55caeb7f60c6208aa255"
+  },
+  {
+    "component": "rapidjson",
+    "version": "v1.1.0",
+    "source": "https://raw.githubusercontent.com/Tencent/rapidjson/v1.1.0/license.txt",
+    "upstreamFile": "license.txt",
+    "file": "rapidjson-LICENSE.txt",
+    "sha256": "a140e5d46fe734a1c78f1a3c3ef207871dd75648be71fdda8e309b23ab8b1f32"
+  }
+]

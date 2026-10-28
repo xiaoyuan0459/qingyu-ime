@@ -1,0 +1,6 @@
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="@dimen/pref_chevron_width"
+    android:layout_height="@dimen/pref_chevron_height"
+    android:layout_gravity="center_vertical"
+    android:contentDescription="@null"
+    android:src="@drawable/ic_pref_chevron_right" />

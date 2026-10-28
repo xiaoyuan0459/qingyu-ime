@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      AndroidX preference 库在 values-v21/values-v21.xml 里另有一份
+      PreferenceSummaryTextStyle（textAppearance 换成 textAppearanceListItemSecondary），
+      API 21+ 设备上会盖掉 values/ 里的那份。
+      本项目 minSdk = 23，即所有目标设备都走这一份，所以必须同步覆盖，
+      否则副标题的灰色不会生效。
+      修改时请与 values/themes.xml 中的同名 style 保持一致。
+    -->
+    <style name="PreferenceSummaryTextStyle">
+        <item name="android:textAppearance">?android:attr/textAppearanceListItemSecondary</item>
+        <item name="android:textColor">@color/pref_summary_text</item>
+    </style>
+</resources>

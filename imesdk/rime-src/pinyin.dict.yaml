@@ -1,0 +1,46 @@
+# 轻语输入法 · 全拼词库装配清单（编译期源，不打进 APK）
+#
+# 本文件是本工程自写的装配清单：只声明「用哪些词库分表、按什么规则编表」。
+# 分表内容（`cn_dicts/`）来自雾凇拼音 rime-ice（GPL-3.0），由
+# `tools/build-rime-pack.py` 从 gitignored 的 `build/rime-src/` 浅克隆取入，
+# 不随本仓库分发；`essay.txt` 预置词汇表来自 rime/rime-essay（LGPL-3.0）。
+#
+# 排序分三层，各管一段，不要混：
+#   1. 词表与拼音 —— 继承上游，换 revision 即跟随，我们不改
+#   2. 频率权重   —— 自有，`tools/gen-dict-freq.py` 融合上游/essay/jieba 后由
+#                    `build-rime-pack.py` 注入分表的权重列（`cn_dicts/qingyu_overlay`
+#                    除外）；改权重不改词条，是修正排序的主战场
+#   3. 增词与例外 —— 自有叠加层 `cn_dicts/qingyu_overlay.dict.yaml`，人工维护
+#
+# 因此**由本文件编译出的词库是 copyleft 衍生品，只能作为可插拔词库包分发**，
+# 不得进 APK —— 判据与路线见根目录 `LICENSING.md` 三·补、第六节。
+#
+# 用我们自己的 librime 编译（不再依赖旧闭源库产出的二进制）：
+#   python tools/gen-dict-freq.py             # 先生成自有频率覆盖表
+#   python tools/build-rime-pack.py           # 组装 build/m3/src（注入频率 + 叠加层）
+#   然后按脚本末尾提示在设备上跑 qingyu_deployer
+---
+name: pinyin
+version: "qingyu-m3"
+# 同音词条按权重降序入表。librime 只在候选**跨音节合并**时按块首重排，块内就是
+# 词库存储序；而 8105 字表开头有一批按拼音排的权重 1 罕见字（如 𭎂 zong），
+# 用 original 会让它们占住每个音节的第一格（实测 zong 第 2 候选即 𭎂）。
+# 上游 rime-ice 同样不写 sort，即默认 by_weight。
+sort: by_weight
+# 词汇表基线：缺它会导致候选深度与排序整体塌陷
+# （实测：关掉之后 nihao 候选 100 → 30，shi 从 4 页 378 项 → 1 页）
+use_preset_vocabulary: true
+import_tables:
+  # 自有叠加层，必须排最前：librime 对重复词条只取首个权重，放后面就盖不住上游。
+  # 内容是我们自己的增词与钉死权重，见该文件头部说明。
+  - cn_dicts/qingyu_overlay
+  - cn_dicts/8105      # 字表（通用规范汉字表一级+二级）
+  # 大字表（CJK 扩展）。雾凇默认不启用，但本工程的对照基线（继承词库）是带的：
+  # 实测每个音节的词条数 8105 版 shi=83 / ni=27，继承版 shi=374 / ni=173，
+  # 生僻字与单字候选深度差 4 倍以上。启用时须排在 8105 之后（重复词条首个权重生效）。
+  - cn_dicts/41448
+  - cn_dicts/base      # 基础词库
+  - cn_dicts/ext       # 扩展词库
+  - cn_dicts/tencent   # 腾讯词向量补充词组
+  - cn_dicts/others    # 杂项
+...

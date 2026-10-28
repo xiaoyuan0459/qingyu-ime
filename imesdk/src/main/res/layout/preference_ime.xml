@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  设置页列表行。沿用 AndroidX preference 的视图 id（title / summary / widget_frame / icon_frame），
+  只重写内边距与字阶：库自带的 preference_material 把上下内边距写死成 16dp，
+  双行行高会到 78dp，而参考基线是单行 55dp、双行约 64dp，只能换布局。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:baselineAligned="false"
+    android:clipToPadding="false"
+    android:foreground="?android:attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/pref_row_min_height"
+    android:paddingStart="@dimen/pref_row_padding_horizontal"
+    android:paddingEnd="@dimen/pref_row_padding_horizontal">
+
+    <include layout="@layout/preference_icon_frame_ime" />
+
+    <RelativeLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:paddingTop="@dimen/pref_row_padding_vertical"
+        android:paddingBottom="@dimen/pref_row_padding_vertical">
+
+        <TextView
+            android:id="@android:id/title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="marquee"
+            android:singleLine="true"
+            android:textAppearance="@style/TextAppearance.AppTheme.PrefTitle" />
+
+        <TextView
+            android:id="@android:id/summary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@android:id/title"
+            android:layout_alignStart="@android:id/title"
+            android:maxLines="10"
+            android:textAlignment="viewStart"
+            android:textAppearance="@style/TextAppearance.AppTheme.PrefSummary" />
+
+    </RelativeLayout>
+
+    <LinearLayout
+        android:id="@android:id/widget_frame"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:gravity="end|center_vertical"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="0dp" />
+
+</LinearLayout>

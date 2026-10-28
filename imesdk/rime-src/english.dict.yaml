@@ -1,0 +1,18 @@
+# 轻语输入法 · 英文词库装配清单（编译期源，不打进 APK）
+#
+# 分表来自雾凇拼音 rime-ice 的 `en_dicts/`（GPL-3.0），故本清单编译出的词库
+# 同属 copyleft 衍生品，只作为可插拔词库包分发 —— 见 `LICENSING.md` 三·补。
+#
+# 这份清单同时是「中英混输」的数据前提：`assets/rime/` 里从来没有英文词库，
+# 所以此前挂在 schema 上的 `table_translator@english` / `cn_en` 是空转的
+# （见 MIGRATION.md「中英混输」条目）。
+---
+name: english
+version: "qingyu-m3"
+sort: by_weight
+use_preset_vocabulary: false
+import_tables:
+  # 补充表放在前面：与 en 有重复词条时，最先出现的权重生效
+  - en_dicts/en_ext
+  - en_dicts/en
+...

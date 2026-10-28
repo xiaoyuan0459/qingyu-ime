@@ -1,0 +1,155 @@
+{
+  "version": "qingyu-hw-image-v1",
+  "created": "2026-10-23T23:13:44",
+  "num_classes": 27664,
+  "charset_sha256": "b18a51e0de730b54f8a9de1eac30e8e16ed6251cbd1aeb81ea388173c3b7c421",
+  "charset_source": "jieba dict.txt (MIT) 字频排序 + 字体覆盖过滤",
+  "input": {
+    "name": "input",
+    "shape": [
+      1,
+      1,
+      64,
+      64
+    ],
+    "dtype": "float32",
+    "scale": "pixel/255.0，笔画≈1，背景≈0（与 preprocess.c 一致）"
+  },
+  "output": {
+    "name": "logits",
+    "shape": [
+      1,
+      27664
+    ]
+  },
+  "training": {
+    "data": "tools\\handwriting\\.cache\\dataset\\v6",
+    "num_classes": 27664,
+    "params": 8245296,
+    "val": {
+      "n": 20000,
+      "loss": 0.05970174876451492,
+      "top1": 0.9985,
+      "top5": 0.99995,
+      "top10": 0.99995,
+      "buckets": {
+        "1-3500": {
+          "n": 3363,
+          "top1": 0.9976211715730003,
+          "top5": 0.999702646446625,
+          "top10": 0.999702646446625
+        },
+        "3501-8105": {
+          "n": 3844,
+          "top1": 0.9989594172736732,
+          "top5": 1.0,
+          "top10": 1.0
+        },
+        "8106-末": {
+          "n": 12793,
+          "top1": 0.9985929805362308,
+          "top5": 1.0,
+          "top10": 1.0
+        }
+      }
+    },
+    "test_unseen_style": {
+      "n": 20526,
+      "loss": 1.1188369017995659,
+      "top1": 0.8883854623404462,
+      "top5": 0.9713534054370068,
+      "top10": 0.9825099873331384,
+      "buckets": {
+        "1-3500": {
+          "n": 10185,
+          "top1": 0.8827687776141384,
+          "top5": 0.970839469808542,
+          "top10": 0.983014236622484
+        },
+        "3501-8105": {
+          "n": 8589,
+          "top1": 0.9033647688904413,
+          "top5": 0.9771801140994295,
+          "top10": 0.9857957853067878
+        },
+        "8106-末": {
+          "n": 1752,
+          "top1": 0.8476027397260274,
+          "top5": 0.9457762557077626,
+          "top10": 0.9634703196347032
+        }
+      }
+    }
+  },
+  "onnx_check": {
+    "checked": true,
+    "max_logit_diff": 5.14984130859375e-05,
+    "top1_agreement": 1.0,
+    "subset_accuracy": 0.8515625,
+    "subset_size": 256
+  },
+  "ncnn": {
+    "converted": true,
+    "param_sha256": "fc87dba42f241f6c977801a9667e52813c1d30a5752274de25039fcd3088e8f3",
+    "bin_sha256": "d776bb949b0f338196a361bcd665b5cda41291d62d6d93bc1aed7b1b586a5348",
+    "bin_bytes": 16545952
+  },
+  "files": {
+    "model.pt": {
+      "bytes": 33001339,
+      "sha256": "b37ac1eeb46acd042152abfbf162a0ef32ed9e78ba8c8d277b31f63571daaea2"
+    },
+    "model.onnx": {
+      "bytes": 32981831,
+      "sha256": "15c51750ab7c8e057377c01b7c690e04b10ade3e3c273565e53bc349b89cbf68"
+    },
+    "charset.json": {
+      "bytes": 193773,
+      "sha256": "129f82cf0a495b80d7f77e3ef2cbb15c103f4ed1e4cdc7a3fba03f3143810dc8"
+    },
+    "model.ncnn.param": {
+      "bytes": 1410,
+      "sha256": "fc87dba42f241f6c977801a9667e52813c1d30a5752274de25039fcd3088e8f3"
+    },
+    "model.ncnn.bin": {
+      "bytes": 16545952,
+      "sha256": "d776bb949b0f338196a361bcd665b5cda41291d62d6d93bc1aed7b1b586a5348"
+    },
+    "int8/model-int8.param": {
+      "bytes": 1160,
+      "sha256": "432dc2897433eef8694ffcc0f7e1fe7abb7869287f0d7434b8191ebebfdc3d7b"
+    },
+    "int8/model-int8.bin": {
+      "bytes": 8444396,
+      "sha256": "458bab2b63b9135c986321a302e442b20fbbdcae2c3a1e20849842d160a2e92d"
+    },
+    "int8/model.table": {
+      "bytes": 298470,
+      "sha256": "569d3cf26208fc646bcc077fc7c928cbc42916ad72d39b04ecbbfd0e54a2883b"
+    }
+  },
+  "license_note": "训练语料仅含 OFL-1.1 字体渲染图与（后续）自有采集手写样本，不含 CASIA/HWDB 派生数据；字体本身不随包分发。",
+  "int8": {
+    "method": "kl",
+    "calib_images": 1000,
+    "bytes": 8444396,
+    "accuracy": {
+      "fp16": {
+        "n": 6000,
+        "seconds": 6.8,
+        "top1": 0.8897,
+        "top5": 0.9698,
+        "top10": 0.9802
+      },
+      "int8": {
+        "n": 6000,
+        "seconds": 7.9,
+        "top1": 0.8837,
+        "top5": 0.9672,
+        "top10": 0.9802
+      },
+      "top1_delta_pp": -0.6
+    },
+    "note": "int8 推理需 ncnn opt.use_int8_inference=True；输入口径与 fp16 完全一致"
+  }
+}
