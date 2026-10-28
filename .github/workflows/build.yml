@@ -138,9 +138,12 @@ jobs:
             echo "没有找到 APK，跳过发布" >&2
             exit 1
           fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${apks[@]}" dist/SHA256SUMS.txt --clobber
+          # 这个作业不 checkout 仓库，gh 无法从工作区推断仓库，必须显式 --repo。
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${apks[@]}" dist/SHA256SUMS.txt \
+              --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" --title "$TAG" --prerelease --generate-notes \
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG" --prerelease --generate-notes \
               dist/SHA256SUMS.txt "${apks[@]}"
           fi
