@@ -44,7 +44,7 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
         }
         SkbMenuMode.Feedback -> {
             // 按键反馈留在键盘内弹卡（参考魅族版弹层形态），不跳全屏设置页
-            com.qingyu.imemodule.keyboard.container.KeyboardFeedbackMenu(inputView.context, inputView).show()
+            inputView.showKeyboardFeedback()
         }
         SkbMenuMode.NumberRow -> {
             val abcNumberLine = AppPrefs.getInstance().keyboardSetting.abcNumberLine.getValue()

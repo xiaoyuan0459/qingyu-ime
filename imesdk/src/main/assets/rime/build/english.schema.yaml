@@ -21,7 +21,7 @@ engine:
     - punct_translator
     - echo_translator
 menu:
-  page_size: 100
+  page_size: 30
 punctuator:
   symbols:
     "/": ["@", "＃", "＊", "＋", "……", "〜", "（", "）", "、", "/"]

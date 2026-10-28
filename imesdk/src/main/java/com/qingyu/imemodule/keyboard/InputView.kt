@@ -37,6 +37,7 @@ import com.qingyu.imemodule.keyboard.container.BaseContainer
 import com.qingyu.imemodule.keyboard.container.CandidatesContainer
 import com.qingyu.imemodule.keyboard.container.ClipBoardContainer
 import com.qingyu.imemodule.keyboard.container.InputBaseContainer
+import com.qingyu.imemodule.keyboard.container.KeyboardFeedbackMenu
 import com.qingyu.imemodule.keyboard.container.SymbolContainer
 import com.qingyu.imemodule.keyboard.container.T9TextContainer
 import com.qingyu.imemodule.keyboard.container.TextEditContainer
@@ -109,10 +110,16 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     private var mLlKeyboardBottomHolder: LinearLayout
     private var mInputKeyboardContainer: RelativeLayout
     private var keyboardAdjustment: KeyboardAdjustment? = null
+    private var keyboardFeedbackMenu: KeyboardFeedbackMenu? = null
 
     fun showKeyboardAdjustment() {
         val adjustment = keyboardAdjustment ?: KeyboardAdjustment(this, mInputKeyboardContainer).also { keyboardAdjustment = it }
         adjustment.show()
+    }
+
+    fun showKeyboardFeedback() {
+        val menu = keyboardFeedbackMenu ?: KeyboardFeedbackMenu(this).also { keyboardFeedbackMenu = it }
+        menu.show()
     }
     private lateinit var mRightPaddingKey: ManagedPreference.PInt
     private lateinit var mBottomPaddingKey: ManagedPreference.PInt
@@ -175,6 +182,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     @SuppressLint("ClickableViewAccessibility")
     fun initView(context: Context) {
         LogUtil.d("1111111111111", "InputView initView")
+        keyboardFeedbackMenu?.dismiss()
         if (isAddPhrases) {
             if (mAddPhrasesLayout.parent == null) {
                 addView(mAddPhrasesLayout, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
@@ -445,6 +453,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
     override fun responseKeyEvent(sKey: SoftKey) {
         if (UserDataManager.isInputPaused) return
+        if (handleStrokePatternKey(sKey)) return
         val keyCode = sKey.code
         if(sKey.isUserDefKey)processUserDefKey(keyCode, sKey.keyLabel)
         else if(sKey.isUniStrKey){
@@ -462,6 +471,49 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     }
 
 
+    /**
+     * 笔画通配模式：`通配` 收进组合串，普通笔画键在组合串里继续追加，退格先退组合串。
+     * 非笔画方案或非通配键返回 false，交回常规按键链路。
+     */
+    private fun handleStrokePatternKey(sKey: SoftKey): Boolean {
+        if (Kernel.getCurrentRimeSchema() != CustomConstant.SCHEMA_ZH_STROKE) {
+            if (DecodingInfo.isStrokePattern) DecodingInfo.reset()
+            return false
+        }
+        if (sKey.code == InputModeSwitcher.USER_KEYCODE_STAR) {
+            DecodingInfo.appendStrokeWildcard()
+            updateCandidateBar()
+            return true
+        }
+        if (!DecodingInfo.isStrokePattern) return false
+        val code = when (sKey.code) {
+            KeyEvent.KEYCODE_H -> 'h'
+            KeyEvent.KEYCODE_S -> 's'
+            KeyEvent.KEYCODE_P -> 'p'
+            KeyEvent.KEYCODE_N -> 'n'
+            KeyEvent.KEYCODE_Z -> 'z'
+            else -> null
+        }
+        if (code != null) {
+            DecodingInfo.appendStrokeLiteral(code)
+            updateCandidateBar()
+            return true
+        }
+        return when (sKey.code) {
+            KeyEvent.KEYCODE_DEL -> {
+                DecodingInfo.deleteStrokePattern()
+                updateCandidateBar()
+                true
+            }
+            KeyEvent.KEYCODE_CLEAR -> {
+                DecodingInfo.reset()
+                updateCandidateBar()
+                true
+            }
+            else -> false
+        }
+    }
+
     fun processKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (UserDataManager.isInputPaused) return true
         if (keyCode >= KeyEvent.KEYCODE_A && keyCode <= KeyEvent.KEYCODE_Z) return true
@@ -477,7 +529,17 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
     fun processKeyUp(event: KeyEvent): Boolean {
         if (UserDataManager.isInputPaused) return true
-        if (event.keyCode == KeyEvent.KEYCODE_BACK && keyboardAdjustment?.dismiss() == true) return true
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            // 键盘内弹层先退自己，再交给面板/键盘的返回语义；否则返回键会把整个键盘收掉，
+            // 用户看到的是「面板还在、键盘没了」。
+            if (keyboardFeedbackMenu?.dismiss() == true) return true
+            if (keyboardAdjustment?.dismiss() == true) return true
+            if (DecodingInfo.isStrokePattern) {
+                DecodingInfo.reset()
+                updateCandidateBar()
+                return true
+            }
+        }
         if(event.isSystem) return processSystemKeys(event)
         else if(isFunctionKey(event.keyCode)){
             processFunctionKey(event)
@@ -567,6 +629,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             KeyEvent.KEYCODE_CLEAR -> resetToIdleState()
             KeyEvent.KEYCODE_ENTER -> {
                 if (DecodingInfo.isCandidatesEmpty || DecodingInfo.isAssociate) sendKeyEvent(keyCode)
+                else if (DecodingInfo.isStrokePattern) chooseAndUpdate()
                 else commitDecInfoText(DecodingInfo.composingStrForCommit)
                 resetToIdleState()
             }
@@ -980,9 +1043,14 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
     fun onWindowShown() {
         chinesePrediction = editorContext?.allowsSuggestions != false && appPrefs.input.chinesePrediction.getValue()
+        // 设置页在另一个进程；回到键盘时补一次引擎选项，繁体/Emoji 开关不必等换输入框才生效。
+        Kernel.nativeUpdateImeOption()
+        DecodingInfo.warmTraditional()
+        if (chinesePrediction) DecodingInfo.warmAssociation()
     }
 
     fun onWindowHidden() {
+        keyboardFeedbackMenu?.dismiss()
         keyboardAdjustment?.dismiss()
         if (isAddPhrases) savePhraseDraft()
         KeyboardManager.instance.switchKeyboard()

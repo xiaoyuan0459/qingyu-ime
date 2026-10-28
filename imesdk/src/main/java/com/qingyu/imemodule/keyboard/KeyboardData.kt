@@ -50,15 +50,15 @@ object KeyboardData {
     val layoutStrokeCn: Map<SkbStyleMode, ArrayList<Array<Int>>> = linkedMapOf(
         SkbStyleMode.Google to arrayListOf(
             arrayOf(InputModeSwitcher.USER_KEYCODE_LEFT_SYMBOL, KeyEvent.KEYCODE_H, KeyEvent.KEYCODE_S, KeyEvent.KEYCODE_P, KeyEvent.KEYCODE_DEL),
-            arrayOf(KeyEvent.KEYCODE_N, KeyEvent.KEYCODE_Z, KeyEvent.KEYCODE_CLEAR),
+            arrayOf(KeyEvent.KEYCODE_N, KeyEvent.KEYCODE_Z, InputModeSwitcher.USER_KEYCODE_STAR, KeyEvent.KEYCODE_CLEAR),
             arrayOf(KeyEvent.KEYCODE_APOSTROPHE, KeyEvent.KEYCODE_MINUS, KeyEvent.KEYCODE_EQUALS, KeyEvent.KEYCODE_AT)),
         SkbStyleMode.Samsung to arrayListOf(
             arrayOf(InputModeSwitcher.USER_KEYCODE_LEFT_SYMBOL, KeyEvent.KEYCODE_H, KeyEvent.KEYCODE_S, KeyEvent.KEYCODE_P, KeyEvent.KEYCODE_DEL),
-            arrayOf(KeyEvent.KEYCODE_N, KeyEvent.KEYCODE_Z, KeyEvent.KEYCODE_CLEAR),
+            arrayOf(KeyEvent.KEYCODE_N, KeyEvent.KEYCODE_Z, InputModeSwitcher.USER_KEYCODE_STAR, KeyEvent.KEYCODE_CLEAR),
             arrayOf(KeyEvent.KEYCODE_APOSTROPHE, KeyEvent.KEYCODE_MINUS, KeyEvent.KEYCODE_EQUALS, KeyEvent.KEYCODE_AT)),
         SkbStyleMode.Qingyu to arrayListOf(
             arrayOf(InputModeSwitcher.USER_KEYCODE_LEFT_SYMBOL, KeyEvent.KEYCODE_H, KeyEvent.KEYCODE_S, KeyEvent.KEYCODE_P, KeyEvent.KEYCODE_DEL),
-            arrayOf(KeyEvent.KEYCODE_N, KeyEvent.KEYCODE_Z, KeyEvent.KEYCODE_CLEAR),
+            arrayOf(KeyEvent.KEYCODE_N, KeyEvent.KEYCODE_Z, InputModeSwitcher.USER_KEYCODE_STAR, KeyEvent.KEYCODE_CLEAR),
             arrayOf(KeyEvent.KEYCODE_APOSTROPHE, KeyEvent.KEYCODE_MINUS, KeyEvent.KEYCODE_EQUALS, KeyEvent.KEYCODE_AT)),
     )
 

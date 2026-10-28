@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include "association.h"
 #include "stroke_lookup.h"
+#include "stroke_wildcard.h"
 
 // librime 的「按键名 → 键码」查表函数，实现在 src/rime/key_table.cc。
 //
@@ -483,6 +484,7 @@ JNIEXPORT void JNICALL Java_com_qingyu_inputmethod_core_RimeSession_nativeStop(
     return;
   }
   CloseAssociationSession();
+  CloseStrokeWildcardSession();
   RimeDestroySession(g_session);
   g_session = 0;
   RimeFinalize();
@@ -706,6 +708,27 @@ Java_com_qingyu_inputmethod_core_RimeSession_nativeAssociationProbe(
   std::lock_guard<std::mutex> lock(g_mutex);
   const auto words = g_session == 0 ? vector<string>{} :
       QueryAssociation(ToStd(env, input), ToStd(env, prefix), max_pages);
+  jclass string_class = env->FindClass("java/lang/String");
+  if (!string_class) return nullptr;
+  jobjectArray result = env->NewObjectArray(words.size(), string_class, nullptr);
+  env->DeleteLocalRef(string_class);
+  if (!result) return nullptr;
+  for (size_t i = 0; i < words.size(); ++i) {
+    jstring word = MakeString(env, words[i].c_str());
+    env->SetObjectArrayElement(result, i, word);
+    env->DeleteLocalRef(word);
+    if (env->ExceptionCheck()) return nullptr;
+  }
+  return result;
+}
+
+/** 五笔画通配：`*` 代表任意一笔，展开后合并结果。 */
+JNIEXPORT jobjectArray JNICALL
+Java_com_qingyu_inputmethod_core_RimeSession_nativeStrokeWildcard(
+    JNIEnv* env, jobject /*thiz*/, jstring pattern, jint max_candidates) {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  const auto words = g_session == 0 ? vector<string>{} :
+      QueryStrokeWildcard(ToStd(env, pattern), max_candidates);
   jclass string_class = env->FindClass("java/lang/String");
   if (!string_class) return nullptr;
   jobjectArray result = env->NewObjectArray(words.size(), string_class, nullptr);

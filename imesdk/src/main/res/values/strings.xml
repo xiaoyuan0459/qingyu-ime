@@ -75,6 +75,7 @@
     <string name="chinese_input_setting">中文输入</string>
     <string name="search_english_cell">英文单词补全</string>
     <string name="setting_jian_fan">繁体输入</string>
+    <string name="setting_jian_fan_summary">关闭后候选只显示简体</string>
     <string name="spelling_correction">拼写纠错</string>
     <string name="chinese_association">中文联想</string>
     <string name="phrase_candidates">常用语候选</string>
@@ -97,6 +98,7 @@
     <string name="space_auto">英文单词自动追加空格</string>
     <string name="emoji_setting">表情输入</string>
     <string name="emoji_input">候选词中显示Emoji表情</string>
+    <string name="emoji_input_summary">关闭后候选不出现表情符号</string>
     <string name="symbol_setting">符号输入</string>
     <string name="symbol_pair_input">成对符号自动匹配</string>
     <!-- 设置页分组标题：对齐参考基线「按键与字体 / 布局调节 / 外接键盘」的分组粒度 -->

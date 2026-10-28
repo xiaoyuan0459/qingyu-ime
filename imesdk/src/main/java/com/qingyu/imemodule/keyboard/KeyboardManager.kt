@@ -1,7 +1,9 @@
 package com.qingyu.imemodule.keyboard
 
+import com.qingyu.imemodule.application.CustomConstant
 import com.qingyu.imemodule.application.Launcher
 import com.qingyu.imemodule.manager.InputModeSwitcher
+import com.qingyu.inputmethod.core.Kernel
 import com.qingyu.imemodule.service.ImeService
 import com.qingyu.imemodule.keyboard.container.BaseContainer
 import com.qingyu.imemodule.keyboard.container.CandidatesContainer
@@ -15,6 +17,7 @@ import com.qingyu.imemodule.keyboard.container.SymbolContainer
 import com.qingyu.imemodule.keyboard.container.T9TextContainer
 import com.qingyu.imemodule.keyboard.container.TextEditContainer
 import com.qingyu.imemodule.prefs.AppPrefs
+import com.qingyu.imemodule.service.DecodingInfo
 import com.qingyu.imemodule.singleton.EnvironmentSingleton
 import com.qingyu.imemodule.utils.KeyboardLoaderUtil
 
@@ -86,6 +89,11 @@ class KeyboardManager {
 
     fun switchKeyboard(keyboardName: KeyboardType) {
         if (!::mKeyboardRootView.isInitialized) return
+        // 切换方案后旧的笔画通配组合不再属于当前引擎，先清掉；面板/展开切换仍保留。
+        if (DecodingInfo.isStrokePattern &&
+            Kernel.getCurrentRimeSchema() != CustomConstant.SCHEMA_ZH_STROKE) {
+            DecodingInfo.reset()
+        }
         if (currentContainer is TextEditContainer && keyboardName != KeyboardType.TEXTEDIT) {
             mInputView.hasSelection = false
         }

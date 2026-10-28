@@ -44,7 +44,7 @@ english:
   enable_user_dict: false
   initial_quality: 1.1
 menu:
-  page_size: 100
+  page_size: 30
 punctuator:
   symbols:
     "/": ["@", "＃", "＊", "＋", "……", "〜", "（", "）", "、", "/"]

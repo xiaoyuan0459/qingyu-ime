@@ -222,6 +222,14 @@ object RimeSession {
     @WorkerThread
     fun associationProbe(input: String, prefix: String, maxPages: Int): Array<String> =
         if (running) nativeAssociationProbe(input, prefix, maxPages) else emptyArray()
+
+    /**
+     * 五笔画通配查询：`*` 代表任意一笔（最多两处），返回去重后的候选。
+     * 只读独立会话，不改变当前输入组合或 Kotlin 缓存。
+     */
+    @WorkerThread
+    fun strokeWildcard(pattern: String, maxCandidates: Int): Array<String> =
+        if (running) nativeStrokeWildcard(pattern, maxCandidates) else emptyArray()
     // ---------------------------------------------------------------- 内部状态刷新
     /** Read-only lookup in the current pack. No candidate, option or learning session is changed. */
     @WorkerThread
@@ -293,5 +301,6 @@ object RimeSession {
     private external fun nativeKeycodeOf(name: String): Int
 
     private external fun nativeAssociationProbe(input: String, prefix: String, maxPages: Int): Array<String>
+    private external fun nativeStrokeWildcard(pattern: String, maxCandidates: Int): Array<String>
     private external fun nativeStrokeCodes(path: String, characters: ByteArray): Array<String>?
 }

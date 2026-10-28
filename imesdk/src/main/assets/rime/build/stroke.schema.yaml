@@ -32,7 +32,7 @@ engine:
     - echo_translator
     - table_translator
 menu:
-  page_size: 100
+  page_size: 30
 punctuator:
   symbols:
     "/": ["@", "＃", "＊", "＋", "……", "〜", "（", "）", "、", "/"]

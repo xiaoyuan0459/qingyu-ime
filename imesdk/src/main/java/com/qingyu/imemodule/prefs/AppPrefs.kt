@@ -62,7 +62,10 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         // 再挂一行 summary 会把行高从 55dp 撑到 78dp，整页节奏就散了。
         init { category(R.string.chinese_input_setting) }
 
-        val chineseFanTi = switch(R.string.setting_jian_fan, "chinese_jian_fan_enable", false)
+        val chineseFanTi = switch(
+            R.string.setting_jian_fan, "chinese_jian_fan_enable", false,
+            R.string.setting_jian_fan_summary,
+        )
 
         val spellingCorrection = switch(R.string.spelling_correction, "spelling_correction_enable", true)
 
@@ -116,7 +119,10 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         }
 
         init { category(R.string.emoji_setting) }
-        val emojiInput = switch(R.string.emoji_input, "emoji_input_enable", true)
+        val emojiInput = switch(
+            R.string.emoji_input, "emoji_input_enable", true,
+            R.string.emoji_input_summary,
+        )
 
         // 模糊音：拼写代数按开关生效，选项名与 pinyin.schema.yaml 的 algebra 后缀一致
         init { category(R.string.fuzzy_pinyin_category) }

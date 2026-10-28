@@ -1,5 +1,11 @@
 # 自研 native 层：接口契约与实现说明
 
+## 2026-10-28：五笔画通配只读查询
+
+新增后台 `RimeSession.strokeWildcard(pattern, maxCandidates)` 和 private JNI `nativeStrokeWildcard(pattern, maxCandidates)`。`pattern` 只接受小写 `hspnz*`、最多 32 位、最多两处通配；`stroke_wildcard.cc` 把 `*` 展开为 5 种笔画，在独立 `stroke` 会话中逐个查询并按名次轮转合并，最多返回 200 条。
+
+该会话固定 `disable_user_dict`、关闭 `traditionalization` / `emoji`，不读写用户词库，也不改变主会话的组合串或 Kotlin 缓存；引擎停止时与联想会话一起释放。两处通配是 25 次引擎查询，再多会把主线程按键挡太久，因此 Kotlin 侧拒绝第三处通配。调用方仍需在 JNI 互斥锁外做取消与请求校验。
+
 ## 2026-10-08：只读笔画反查
 
 新增后台 `RimeSession.strokeCodes(characters)` 和 private JNI `nativeStrokeCodes(path, characters: ByteArray)`，批次最多 128 个单汉字／1024 字节标准 UTF-8。路径由当前 pack 和固定 `build/stroke.reverse.bin` 生成；返回按输入顺序排列的编码，查无该字返回空编码，装载失败或返回数量不符报不可用。JNI ByteArray 避免补充平面汉字经过 modified UTF-8。
@@ -60,10 +66,12 @@ Android 15 设备回归验证冷查询返回联想词且保留方案、简繁选
 
 ---
 
-## 三、native 侧需要实现的 14 个导出符号
+## 三、native 侧导出符号（2026-09-19 基线）
 
 Kotlin 侧全部为 `private external fun`，统一以 `native` 开头；对应 C++ 导出符号如下
-（实例方法，故 JNI 第二参数是 `jobject` 而非 `jclass`）：
+（实例方法，故 JNI 第二参数是 `jobject` 而非 `jclass`）。基线的 14 个之外，
+后续新增 `nativeAssociationProbe`、`nativeStrokeWildcard`、`nativeStrokeCodes`，
+契约见文件顶部对应小节：
 
 ```
 Java_com_qingyu_inputmethod_core_RimeSession_nativeStart
@@ -80,6 +88,9 @@ Java_com_qingyu_inputmethod_core_RimeSession_nativeCurrentSchema
 Java_com_qingyu_inputmethod_core_RimeSession_nativeSelectSchema
 Java_com_qingyu_inputmethod_core_RimeSession_nativeSelectCandidate
 Java_com_qingyu_inputmethod_core_RimeSession_nativeKeycodeOf
+Java_com_qingyu_inputmethod_core_RimeSession_nativeAssociationProbe
+Java_com_qingyu_inputmethod_core_RimeSession_nativeStrokeWildcard
+Java_com_qingyu_inputmethod_core_RimeSession_nativeStrokeCodes
 ```
 
 > `nativeStart` 现在返回 `jboolean`（会话建不起来时调用方要能感知），
@@ -173,7 +184,7 @@ service.cc:
 
 | # | 差异 | 说明 |
 |---|---|---|
-| 1 | **候选页大小** | 旧实现在每次按键前调用私有补丁 `setRimePageSize(100)`，让候选一次取满；上游无此能力，已删除。页大小现由 schema 的 `menu/page_size` 决定（当前为默认 5）。上层 `DecodingInfo.nextPageCandidates` 是**累积式**翻页，累积后下标天然等于全局下标，故 5 不影响正确性，只影响首屏候选数量与翻页次数。 |
+| 1 | **候选页大小** | 旧实现在每次按键前调用私有补丁 `setRimePageSize(100)`，让候选一次取满；上游无此能力，已删除。页大小现由 schema 的 `menu/page_size` 决定：2026-10-28 起用户方案为 **30**（联想内部方案仍 1000），把每键 native/JNI 与 Kotlin 过滤成本压到约三分之一。上层 `DecodingInfo.nextPageCandidates` 是**累积式**翻页，累积后下标天然等于全局下标，故 30 不影响正确性，只增加翻页次数；展开面板与候选栏滚到末尾时会自动追加。 |
 | 2 | **区间替换** | 上游没有「替换输入串某一段」的 API。`nativeReplaceInput` 用「读出 preedit → 拼接 → `RimeSetInput` 整体设回」实现。旧实现是私有补丁，行为是否完全一致需真机对照。 |
 | 3 | **`recheckData` 参数** | 上游语义是让 deployer 重新校验/重建数据。本工程只分发编译产物、不含 `*.dict.yaml` 源，设备端无法重建，故该参数当前不生效，预留给将来接入 schema 源后使用。 |
 | 4 | **联想** | 两个方法返回空结果，联想候选暂时消失（见 `联想功能规格与实现方案.md`）。 |

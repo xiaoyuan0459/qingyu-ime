@@ -262,6 +262,7 @@ add_library(qingyu_rime SHARED
   ${CMAKE_CURRENT_LIST_DIR}/jni.cc
   ${CMAKE_CURRENT_LIST_DIR}/association.cc
   ${CMAKE_CURRENT_LIST_DIR}/stroke_lookup.cc
+  ${CMAKE_CURRENT_LIST_DIR}/stroke_wildcard.cc
 )
 
 target_include_directories(qingyu_rime PRIVATE

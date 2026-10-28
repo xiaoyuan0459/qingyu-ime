@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.LruCache
 import androidx.annotation.WorkerThread
 import com.qingyu.imemodule.application.Launcher
+import com.qingyu.imemodule.data.rime.RimePackManager
 import com.qingyu.imemodule.utils.HanziPinyin
 import com.qingyu.inputmethod.core.RimeSession
 import java.text.Normalizer
@@ -25,9 +26,26 @@ import java.text.Normalizer
 object AssociatePredictor {
 
     private const val HABITS_STORE = "associate_habits"
+    private const val SCAN_CACHE = "associate_scan_cache"
+    private const val SCAN_CACHE_VERSION = "v1"
     private const val MAX_PAGES = 2
-    private const val MAX_WORDS = 30
+    /** 返回给候选栏的联想词上限：展开面板可以完整浏览。 */
+    private const val MAX_WORDS = 100
+    /** 扫描阶段的合并上限：先多收一些，繁体过滤后仍能凑满 [MAX_WORDS]。 */
+    private const val MAX_SCAN_WORDS = 240
     private const val MAX_HABITS_PER_KEY = 8
+    private const val MAX_PERSISTED_WORDS = 240
+    private const val MAX_PERSISTED_CHARS = 400
+    private const val ORDER_KEY = "order"
+    /** 首批出词只等这几个声母；约 30ms，剩下的在后台继续补。 */
+    private const val PARTIAL_BATCH = 4
+
+    /**
+     * 声母探测顺序。`script_translator` 的 completion 只认「前缀音节 + 一个字母」，
+     * 所以后面必须逐个声母探。把常见后续词的开头排前面，让首批结果尽量可用：
+     * 好 → 好的 / 好事 / 好好 / 好像，而不是字典序靠前的怪词。
+     */
+    private val probeOrder = "dshxzlybwntjmqgcrfpkaeiouv".toCharArray()
 
     /** 引擎代次 + 末字 → 联想词表；切包 / 重启后不复用旧词库结果。 */
     private val cache = LruCache<String, List<String>>(512)
@@ -36,25 +54,60 @@ object AssociatePredictor {
         Launcher.instance.context.getSharedPreferences(HABITS_STORE, Context.MODE_PRIVATE)
     }
 
+    private val persistent by lazy {
+        Launcher.instance.context.getSharedPreferences(SCAN_CACHE, Context.MODE_PRIVATE)
+    }
+
+    @Volatile
+    private var checkedPersistentPack = false
+
+    /** 词库包身份：词库内容变了，旧联想结果就不能再用。 */
+    private val packKey by lazy {
+        val manifest = RimePackManager.activeManifest(Launcher.instance.context)
+        if (manifest == null) "unknown" else "${manifest.id}:${manifest.version}"
+    }
+
     /**
      * 取 [prefix]（光标前的文本）的联想词，返回**完整词**（含前缀那个字）。
      * 展示与上屏都只用续接部分（前缀字已上屏），见 `RimeEngine.predictAssociationWords`；
      * 习惯记录仍存完整词。
      */
     @WorkerThread
-    fun words(prefix: String): List<String> {
+    fun words(prefix: String): List<String> = scan(prefix) { _, _ -> }
+
+    /**
+     * 流式扫描：[onPartial] 会在前几组声母查完后先拿到一批可用结果，
+     * 调用方据此提前刷新候选栏；返回值是完整的联想词表。
+     */
+    @WorkerThread
+    fun scan(prefix: String, onPartial: (List<String>, Int) -> Unit): List<String> {
         if (prefix.isEmpty()) return emptyList()
         val key = prefix.last()
         if (!isHan(key)) return emptyList()
-        val generation = RimeSession.generation
         if (!RimeSession.isRunning) return emptyList()
-        val cacheKey = "$generation:$key"
-        val found = cache.get(cacheKey) ?: queryEngine(key).also {
-            if (generation == RimeSession.generation && RimeSession.isRunning) cache.put(cacheKey, it)
+        val code = plainPinyin(key)
+        if (code.isEmpty()) return emptyList()
+        val generation = RimeSession.generation
+        val cached = cachedWords(generation, key)
+        if (cached != null) return decorate(cached, key)
+
+        val perProbe = ArrayList<List<String>>(probeOrder.size)
+        var batch = 0
+        for ((index, initial) in probeOrder.withIndex()) {
+            if (Thread.currentThread().isInterrupted) throw InterruptedException()
+            val found = RimeSession.associationProbe(
+                "$code'$initial", key.toString(), MAX_PAGES
+            ).toList()
+            if (generation != RimeSession.generation || !RimeSession.isRunning) return emptyList()
+            if (found.isNotEmpty()) perProbe.add(found)
+            if (index < probeOrder.lastIndex && (index + 1) % PARTIAL_BATCH == 0) {
+                onPartial(decorate(merge(perProbe), key), ++batch)
+            }
         }
-        if (generation != RimeSession.generation || !RimeSession.isRunning) return emptyList()
-        val learned = habitOf(key)
-        return if (learned.isEmpty()) found else (learned + found).distinct()
+        val result = merge(perProbe)
+        cache.put(cacheKey(generation, key), result)
+        storePersistent(key, result)
+        return decorate(result, key)
     }
 
     /** 记录一次选择，使该词下次排到最前（规格第 3 条「习惯学习」）。 */
@@ -64,51 +117,76 @@ object AssociatePredictor {
         habits.edit().putString(key.toString(), next.joinToString("\n")).apply()
     }
 
-    // ------------------------------------------------------------------ 查询
+    // ------------------------------------------------------------------ 合并与缓存
 
-    /**
-     * 联想检索专用的方案 id。
-     *
-     * 不能用全拼方案查：`script_translator` 只返回完整覆盖输入串的词条，
-     * 输 `yuan` 只有单字，拿不到「原来」。`associate` 改用 `table_translator`，
-     * 走 `Dictionary::LookupWords(predictive = true)` 的前缀扩展检索。
-     * 见 `assets/rime/build/associate.schema.yaml`。
-     */
-    private fun queryEngine(key: Char): List<String> {
-        val code = plainPinyin(key)
-        if (code.isEmpty()) return emptyList()
-        val perProbe = ArrayList<List<String>>(26)
-        /*
-             * 只送「yuan」拿不到词：实测 828 项候选全是单字 —— 词库的同音节层里
-             * 只有码长恰为该音节的词条。补上**半个后续音节**（yuan + 一个字母）后，
-             * completion 才会把后续音节以该字母开头的多字词带出来
-             * （实测 yuanl → 原来、原理、原料、原谅、原路）。
-             * 一个字母覆盖不了所有声母，故 26 个字母各查一次再合并。
-             *
-             * 前缀音节后用 `'` 显式分隔：相邻键纠错表会把 `yuanl` 重新切分成
-             * `yua'nl`（y→h、n→l），联想结果会被「华丽」之类的纠错候选挤掉；
-             * 加分隔符后引擎只按 `yuan` + 首字母扩展。
-             */
-        for (initial in 'a'..'z') {
-            if (Thread.currentThread().isInterrupted) throw InterruptedException()
-            val found = RimeSession.associationProbe("$code'$initial", key.toString(), MAX_PAGES).toList()
-            if (found.isNotEmpty()) perProbe.add(found)
-        }
-        // 按「各次探测内的名次」轮转合并，让每个声母的头名先出场，
-        // 避免整体偏向字母表靠前的声母。
+    private fun decorate(found: List<String>, key: Char): List<String> {
+        val learned = habitOf(key)
+        val merged = if (learned.isEmpty()) found else (learned + found).distinct()
+        return merged.filter(TraditionalGate::keeps).take(MAX_WORDS)
+    }
+
+    /** 按「各次探测内的名次」轮转合并，让每个声母的头名先出场。 */
+    private fun merge(perProbe: List<List<String>>): List<String> {
         val merged = LinkedHashSet<String>()
         var rank = 0
-        while (merged.size < MAX_WORDS && perProbe.any { rank < it.size }) {
+        while (merged.size < MAX_SCAN_WORDS && perProbe.any { rank < it.size }) {
             for (found in perProbe) found.getOrNull(rank)?.let(merged::add)
             rank++
         }
-        return merged.take(MAX_WORDS)
+        return merged.toList()
     }
+
+    private fun cachedWords(generation: Long, key: Char): List<String>? {
+        cache.get(cacheKey(generation, key))?.let { return it }
+        val persisted = readPersistent(key) ?: return null
+        cache.put(cacheKey(generation, key), persisted)
+        return persisted
+    }
+
+    private fun cacheKey(generation: Long, key: Char) = "$generation:$key"
+
+    private fun persistentKey(key: Char) = "$SCAN_CACHE_VERSION|$packKey|$key"
+
+    private fun ensurePersistentPack() {
+        if (checkedPersistentPack) return
+        synchronized(this) {
+            if (checkedPersistentPack) return
+            if (persistent.getString("pack", null) != packKey) {
+                persistent.edit().clear().putString("pack", packKey).apply()
+            }
+            checkedPersistentPack = true
+        }
+    }
+
+    private fun readPersistent(key: Char): List<String>? {
+        ensurePersistentPack()
+        val value = persistent.getString(persistentKey(key), null) ?: return null
+        return value.split('\n').filter(String::isNotEmpty).ifEmpty { null }
+    }
+
+    private fun storePersistent(key: Char, words: List<String>) {
+        if (words.isEmpty()) return
+        ensurePersistentPack()
+        val name = persistentKey(key)
+        val value = words.take(MAX_PERSISTED_WORDS).joinToString("\n")
+        val order = persistent.getString(ORDER_KEY, null)
+            ?.split('|')?.filter(String::isNotEmpty)?.toMutableList() ?: mutableListOf()
+        if (name in order) {
+            persistent.edit().putString(name, value).apply()
+            return
+        }
+        order.add(name)
+        val editor = persistent.edit()
+        while (order.size > MAX_PERSISTED_CHARS) editor.remove(order.removeAt(0))
+        editor.putString(ORDER_KEY, order.joinToString("|"))
+        editor.putString(name, value)
+        editor.apply()
+    }
+
+    // ------------------------------------------------------------------ 拼音
 
     private fun habitOf(key: Char): List<String> =
         habits.getString(key.toString(), null)?.split('\n')?.filter(String::isNotEmpty) ?: emptyList()
-
-    // ------------------------------------------------------------------ 拼音
 
     /** 「原」→ `yuan`；「女」→ `nv`（rime 用 v 表示 ü）。查不到返回空串。 */
     private fun plainPinyin(char: Char): String {

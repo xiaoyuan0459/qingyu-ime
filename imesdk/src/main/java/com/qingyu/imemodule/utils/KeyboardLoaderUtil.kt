@@ -300,7 +300,8 @@ class KeyboardLoaderUtil private constructor() {
                 keyBeans = LinkedList()
                 t9Key = createT9Keys(keys[1])
                 t9Key.first().mLeftF = 0.185f
-                t9Key.last().widthF = 0.39f   // 撤掉通配键后，重输吃掉腾出的 0.21
+                // 丶 乙 通配 各占一格，重输回到右列常规宽度（对齐参考输入法）。
+                t9Key.last().widthF = 0.18f
                 keyBeans.addAll(t9Key)
                 rows.add(keyBeans)
                 keyBeans = LinkedList()

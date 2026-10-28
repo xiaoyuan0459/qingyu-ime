@@ -65,7 +65,7 @@ class CandidatePanelState {
      * 这样联想词、整句和完全不相关的纠错候选不会混进左列。
      * 少于两个读音时没有必要给左列，调用方应回退到原来的音节表。
      */
-    fun spellings(source: List<Candidate>, composition: String, limit: Int = 6): List<String> {
+    fun spellings(source: List<Candidate>, composition: String, limit: Int = 16): List<String> {
         val typed = composition.filter { it.isLetter() }.lowercase()
         if (typed.isEmpty()) return emptyList()
         return source.asSequence()
@@ -86,7 +86,7 @@ class CandidatePanelState {
      * 「纠错」的来源。这里按引擎顺序取首音节去重，点选后沿用 [selectSpelling]
      * 的同音节过滤，不再显示 `w/m/g` 这种对用户无意义的原始分段。
      */
-    fun t9Spellings(source: List<Candidate>, limit: Int = 6): List<String> =
+    fun t9Spellings(source: List<Candidate>, limit: Int = 16): List<String> =
         source.asSequence()
             .map { it.comment }
             .filter { it.isNotEmpty() }

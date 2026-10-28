@@ -225,7 +225,7 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
         InputModeSwitcher.USER_KEYCODE_SYMBOL, InputModeSwitcher.USER_KEYCODE_NUMBER,
         InputModeSwitcher.USER_KEYCODE_LEFT_SYMBOL, InputModeSwitcher.USER_KEYCODE_LEFT_COMMA,
         InputModeSwitcher.USER_KEYCODE_LEFT_PERIOD, InputModeSwitcher.USER_KEYCODE_COMMA_EMOJI,
-        InputModeSwitcher.USER_KEYCODE_STAR, InputModeSwitcher.USER_KEYCODE_RETURN,
+        InputModeSwitcher.USER_KEYCODE_RETURN,
         InputModeSwitcher.USER_KEYCODE_TEXTEDIT, InputModeSwitcher.USER_KEYCODE_SELECT_MODE,
         InputModeSwitcher.USER_KEYCODE_SELECT_ALL, InputModeSwitcher.USER_KEYCODE_CUT,
         InputModeSwitcher.USER_KEYCODE_COPY, InputModeSwitcher.USER_KEYCODE_PASTE,
@@ -410,8 +410,10 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
     }
 
     /**
-     * 中/英 键按参考输入法的排版画成「中/英」横排：主字深色、后缀小字压暗。
-     * 竖向堆叠会让标签在键面里明显偏高，和其余功能帽的视觉重心不一致。
+     * 中/英 键按参考输入法排成上下两行：主字居中偏上，`/英`（或 `/中`）更小、
+     * 更浅，落在主字右下方。真机对照（MEIZU 18 Pro / 1080×2400）：
+     * 主字墨迹 37×42、中心约在键中心上方 16px；副字 44×29、中心在键中心
+     * 下方 32px；副字灰度约为主字的三分之一。
      *
      * 只在「中文」「英文」两态接管；多语言态没有可命名的中/英主字，仍交给原图标。
      *
@@ -426,28 +428,28 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
         }
         val other = if (softKey.stateId == 0) "/英" else "/中"
         mPaint.typeface = Typeface.DEFAULT
+        val unit = mNormalKeyTextSize.toFloat()
+        val centerX = (softKey.mLeft + softKey.mRight) / 2f
+        val centerY = (softKey.mTop + softKey.mBottom) / 2f
 
-        mPaint.textSize = mNormalKeyTextSize * LANGUAGE_MAIN_RATIO
-        val mainWidth = mPaint.measureText(current)
+        mPaint.textSize = unit * LANGUAGE_MAIN_RATIO
         mPaint.getTextBounds(current, 0, current.length, mLabelBounds)
-        val mainCenterOffset = (mLabelBounds.top + mLabelBounds.bottom) / 2f
-
-        mPaint.textSize = mNormalKeyTextSize * LANGUAGE_SUB_RATIO
-        val subWidth = mPaint.measureText(other)
-        val gap = mNormalKeyTextSize * LANGUAGE_MAIN_SUB_GAP_RATIO
-        val startX = softKey.mLeft + (softKey.width() - mainWidth - gap - subWidth) / 2f
-        val baseline = (softKey.mTop + softKey.mBottom) / 2f - mainCenterOffset
-
-        mPaint.textSize = mNormalKeyTextSize * LANGUAGE_MAIN_RATIO
+        val mainX = centerX + unit * LANGUAGE_MAIN_X_RATIO - mPaint.measureText(current) / 2f
+        val mainBaseline = centerY + unit * LANGUAGE_MAIN_Y_RATIO -
+            (mLabelBounds.top + mLabelBounds.bottom) / 2f
         mPaint.color = mActiveTheme.keyTextColor
-        canvas.drawText(current, startX, baseline, mPaint)
+        canvas.drawText(current, mainX, mainBaseline, mPaint)
 
-        mPaint.textSize = mNormalKeyTextSize * LANGUAGE_SUB_RATIO
+        mPaint.textSize = unit * LANGUAGE_SUB_RATIO
+        mPaint.getTextBounds(other, 0, other.length, mLabelBounds)
+        val subX = centerX + unit * LANGUAGE_SUB_X_RATIO - mPaint.measureText(other) / 2f
+        val subBaseline = centerY + unit * LANGUAGE_SUB_Y_RATIO -
+            (mLabelBounds.top + mLabelBounds.bottom) / 2f
         mPaint.color = ColorUtils.setAlphaComponent(
             mActiveTheme.keyTextColor,
             (Color.alpha(mActiveTheme.keyTextColor) * LANGUAGE_SUB_ALPHA).toInt()
         )
-        canvas.drawText(other, startX + mainWidth + gap, baseline, mPaint)
+        canvas.drawText(other, subX, subBaseline, mPaint)
         return true
     }
 
@@ -469,11 +471,13 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
         const val T9_CONTENT_TEXT_RATIO = 0.72f
         /** 中/英键主字与功能帽同高：参考输入法「中」和「符」的墨高接近。 */
         const val LANGUAGE_MAIN_RATIO = 0.65f
-        /** 中/英键后缀小字约为参考输入法小字的墨高比。 */
-        const val LANGUAGE_SUB_RATIO = 0.40f
-        /** 中/英键主字与小字的水平间距，按主字号取比例。 */
-        const val LANGUAGE_MAIN_SUB_GAP_RATIO = 0.04f
-        /** 中/英键小字的透明度，参考输入法是主字的一半灰。 */
-        const val LANGUAGE_SUB_ALPHA = 0.55f
+        /** 中/英键副字比主字小一档，真机墨高约 29px 对 42px。 */
+        const val LANGUAGE_SUB_RATIO = 0.47f
+        const val LANGUAGE_MAIN_X_RATIO = -0.127f
+        const val LANGUAGE_MAIN_Y_RATIO = -0.214f
+        const val LANGUAGE_SUB_X_RATIO = 0.255f
+        const val LANGUAGE_SUB_Y_RATIO = 0.436f
+        /** 中/英键副字的透明度：参考输入法明显比主字浅。 */
+        const val LANGUAGE_SUB_ALPHA = 0.38f
     }
 }

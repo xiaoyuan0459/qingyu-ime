@@ -64,7 +64,7 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
     private val adapter = CandidatesAdapter(context)
     private val manager = GridLayoutManager(context, 4)
     private val railWidth = maxOf(dp(52), (EnvironmentSingleton.instance.skbWidth * .17f).toInt())
-    private val leftWidth = maxOf(dp(48), (EnvironmentSingleton.instance.skbWidth * .18f).toInt())
+    private val leftWidth = maxOf(dp(52), (EnvironmentSingleton.instance.skbWidth * .19f).toInt())
     private val actions = CandidateActions(context, ::returnToKeyboard, ::delete, ::retype,
         { state.strokeMode = !state.strokeMode; state.clearFilters(); cancelLookup(); changedFilter() },
         { state.singleCharacter = !state.singleCharacter; changedFilter() })
@@ -188,14 +188,15 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
         actions.bind(state.strokeMode, state.singleCharacter, InputModeSwitcher.isChinese)
         val composingText = DecodingInfo.handwritingCompositionPinyin ?: DecodingInfo.composingStrForDisplay.toString()
         val syllableMode = !state.strokeMode && DecodingInfo.prefixs.isEmpty()
-        // 全拼：左列优先给「当前候选出现过的不同读音」，可点选过滤；只有一个读音时退回音节表。
-        // 九键/乱序17：组合串只是键码，注释里的首音节才是候选实际读音（含纠错后的读音）。
-        // 即使引擎给出一组首键拼音（w/x/y/z），浏览候选时也优先展示真实读音；
-        // 键码输入选择仍可在键盘左侧栏完成。
+        // 九键/乱序17 的组合串只是键码，键盘左侧栏已经给出这串键能代表的拼音选项；
+        // 展开面板沿用同一组选项（优先于「候选首音节」去重后的少量读音），
+        // 既能让用户切换拼音，也与参考面板「左列很多、字号更大」的形态一致。
         val readingLayout = InputModeSwitcher.skbLayout == InputModeSwitcher.MASK_SKB_LAYOUT_T9_PINYIN ||
             InputModeSwitcher.skbLayout == InputModeSwitcher.MASK_SKB_LAYOUT_LX17
+        val prefixOptions = if (readingLayout) DecodingInfo.prefixs else emptyArray()
+        val usingPrefixOptions = prefixOptions.isNotEmpty()
         val readings = when {
-            state.strokeMode -> emptyList()
+            state.strokeMode || usingPrefixOptions -> emptyList()
             readingLayout -> state.t9Spellings(DecodingInfo.candidates)
             DecodingInfo.prefixs.isEmpty() -> state.spellings(DecodingInfo.candidates, composingText)
             else -> emptyList()
@@ -203,22 +204,27 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
         val showReadings = readings.isNotEmpty() &&
             (readingLayout || readings.size > 1)
         val labels = when {
+            // 通配组合没有可点的音节/笔画前缀，左列会误触发 selectPrefix；留空只显示候选网格。
+            DecodingInfo.isStrokePattern -> emptyList()
             state.strokeMode -> strokeSymbols
+            usingPrefixOptions -> prefixOptions.asList()
             readingLayout && readings.isNotEmpty() -> readings
             !syllableMode -> DecodingInfo.prefixs.asList()
             showReadings -> readings
             // 全拼：左列展示组合串按分词符拆开的音节表，与参考展开面板一致
             else -> composingText.split('\'').filter { it.isNotBlank() }
         }
-        val readingMode = !state.strokeMode && showReadings
+        val readingMode = !state.strokeMode && showReadings && !usingPrefixOptions
         composingText.takeIf { it.isNotEmpty() }?.let { leftColumn.contentDescription = it }
         leftColumn.visibility = if (labels.isEmpty()) GONE else VISIBLE
         left.visibility = if (labels.isEmpty()) GONE else VISIBLE
         if (labels != leftLabels || readingMode != leftReadingMode) {
             leftLabels = labels
             leftReadingMode = readingMode
-            left.adapter = PrefixAdapter(context, labels.toTypedArray(), if (state.strokeMode) strokeDescriptions else null,
-                contentHeight / 5) { index ->
+            left.adapter = PrefixAdapter(
+                context, labels.toTypedArray(), if (state.strokeMode) strokeDescriptions else null,
+                contentHeight / 5, textSizeSp = 20f
+            ) { index ->
                 when {
                     state.strokeMode -> {
                         state.selectFirstStroke(strokeCodes[index])

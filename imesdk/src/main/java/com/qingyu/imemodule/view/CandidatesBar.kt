@@ -53,6 +53,7 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
 
     private lateinit var mCvListener: CandidateViewListener // 候选词视图监听器
     private lateinit var mRightArrowBtn: ImageView // 右边箭头按钮
+    private lateinit var mArrowDivider: View
     private lateinit var mMenuRightArrowBtn: ImageView
     private lateinit var mCandidatesDataContainer: LinearLayout //候选词视图
     private lateinit var mCandidatesMenuContainer: LinearLayout //控制菜单视图
@@ -137,10 +138,12 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             mRightArrowBtn = ImageView(context).apply {
                 isClickable = true
                 isEnabled = true
-                scaleType = ImageView.ScaleType.FIT_CENTER
+                // CENTER：按矢量自身尺寸绘制，避免 FIT_CENTER 把三角拉宽。
+                scaleType = ImageView.ScaleType.CENTER
                 setPadding(dp(10), dp(10), dp(10), dp(10))
                 setImageResource(R.drawable.sdk_level_list_candidates_display)
             }
+            mArrowDivider = View(context)
             mRVCandidates = RecyclerView(context).apply {
                 setItemAnimator(null)
                 // 行高与行宽都由 CandidatesBar.onMeasure 以 EXACTLY 指定，候选内容
@@ -176,9 +179,14 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             (mRightArrowBtn.parent as ViewGroup).removeView(mRightArrowBtn)
             (mRVCandidates.parent as ViewGroup).removeView(mRVCandidates)
             (mSplitBtn.parent as? ViewGroup)?.removeView(mSplitBtn)
+            (mArrowDivider.parent as? ViewGroup)?.removeView(mArrowDivider)
         }
-        mRightArrowBtn.layoutParams = LinearLayout.LayoutParams(dp(44), LayoutParams.MATCH_PARENT, 0f)
+        // 52dp 的右端占位把实心三角的墨迹中心推到参考输入法的位置（右侧留白约 58px）。
+        mRightArrowBtn.layoutParams = LinearLayout.LayoutParams(dp(52), LayoutParams.MATCH_PARENT, 0f)
         mSplitBtn.layoutParams = LinearLayout.LayoutParams(dp(44), LayoutParams.MATCH_PARENT, 0f)
+        mArrowDivider.layoutParams = LinearLayout.LayoutParams(dp(1), (instance.heightForCandidates * 0.44f).toInt()).apply {
+            gravity = Gravity.CENTER_VERTICAL
+        }
         candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         mRightArrowBtn.setOnClickListener { view: View ->
             when (val level = (view as ImageView).drawable.level) {
@@ -194,11 +202,13 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 候选行只有候选内容 + 拆分/展开箭头；注音块由 InputView 悬浮在键盘区上方。
         if (oneHandedModSwitch && oneHandedMod == KeyboardOneHandedMod.LEFT) {
             candidatesData.addView(mSplitBtn)
+            candidatesData.addView(mArrowDivider)
             candidatesData.addView(mRightArrowBtn)
             candidatesData.addView(mRVCandidates, LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
         } else {
             candidatesData.addView(mRVCandidates, LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
             candidatesData.addView(mSplitBtn)
+            candidatesData.addView(mArrowDivider)
             candidatesData.addView(mRightArrowBtn)
         }
         mCandidatesAdapter.notifyChanged()
@@ -464,6 +474,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         val typing = hasCandidates || hasComposition
         val clipboardSuggestion = DecodingInfo.isClipboardSuggestion && hasCandidates
         mSplitBtn.visibility = if (clipboardSuggestion) VISIBLE else GONE
+        if (::mArrowDivider.isInitialized) {
+            mArrowDivider.visibility = if (typing && !DecodingInfo.isAssociate) VISIBLE else GONE
+        }
         mMenuEntrySlot.visibility = if (typing) GONE else VISIBLE
         mLlContainer.visibility = if (!typing && CustomConstant.flowerTypeface != FlowerTypefaceMode.Disabled) VISIBLE else GONE
         mMenuItemsContainer.visibility = if (typing) GONE else VISIBLE
@@ -489,7 +502,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         } else {
             // 已经在目标位置时不再滚动：scrollToPosition 会请求一次布局，
             // 而打字态每键都会走到这里，绝大多数时候位置本来就是对的。
-            val target = DecodingInfo.activeCandidateBar
+            // 联想/通配是整批替换，沿用上一批的横向偏移会从中间一段开始显示。
+            val target = if (DecodingInfo.isAssociate || DecodingInfo.isStrokePattern) 0
+                else DecodingInfo.activeCandidateBar
             val layoutManager = mRVCandidates.layoutManager as? LinearLayoutManager
             if (DecodingInfo.candidateSize > target && layoutManager?.findFirstVisibleItemPosition() != target) {
                 layoutManager?.scrollToPosition(target)
@@ -599,10 +614,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         return true
     }
 
-    private fun functionalTextColor(): Int =
+    private fun functionalTextColor(alpha: Float = 0.5f): Int =
         ColorUtils.setAlphaComponent(
             ThemeManager.activeTheme.keyTextColor,
-            (Color.alpha(ThemeManager.activeTheme.keyTextColor) * 0.5f).toInt()
+            (Color.alpha(ThemeManager.activeTheme.keyTextColor) * alpha).toInt()
         )
 
     // 刷新主题
@@ -610,10 +625,15 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         initMenuView()
         initCandidateView()
         mIvMenuSetting.setImageResource(R.drawable.sdk_level_candidates_menu_left)
-        mRightArrowBtn.drawable.setTint(textColor)
-        mMenuRightArrowBtn.drawable.setTint(textColor)
+        // 候选行右侧的三角/收起图标按参考输入法走功能灰，不是键帽深色。
+        mRightArrowBtn.drawable.setTint(functionalTextColor(0.70f))
+        // 顶栏收起与候选行三角同一形态：搜狗式实心倒三角 + 功能灰。
+        mMenuRightArrowBtn.drawable.setTint(functionalTextColor(0.70f))
         mCandidatesAdapter.notifyChanged()
         mFlowerType.setTextColor(textColor)
+        if (::mArrowDivider.isInitialized) {
+            mArrowDivider.setBackgroundColor(functionalTextColor(0.12f))
+        }
         if (::mSplitBtn.isInitialized) {
             mSplitIcon.setColors(functionalTextColor(), ThemeManager.activeTheme.barColor)
         }

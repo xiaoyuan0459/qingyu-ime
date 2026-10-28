@@ -243,7 +243,7 @@ object KeyPreset {
         KeyEvent.KEYCODE_APOSTROPHE to arrayOf("分词", "7"),
         KeyEvent.KEYCODE_MINUS to arrayOf("-", "8"),
         KeyEvent.KEYCODE_EQUALS to arrayOf("=", "9"),
-        InputModeSwitcher.USER_KEYCODE_STAR to arrayOf("*", "6"),
+        InputModeSwitcher.USER_KEYCODE_STAR to arrayOf("通配", "6"),
         KeyEvent.KEYCODE_CLEAR to arrayOf("重输"),
         KeyEvent.KEYCODE_SPACE to arrayOf("空格", "0"),
         InputModeSwitcher.USER_KEYCODE_COMMA_EMOJI to  arrayOf("，"),

@@ -6,6 +6,7 @@ import com.qingyu.imemodule.prefs.AppPrefs
 import com.qingyu.imemodule.service.DecodingInfo
 import com.qingyu.inputmethod.RimeEngine
 import com.qingyu.inputmethod.SpellingCorrectionGate
+import com.qingyu.inputmethod.TraditionalGate
 
 object Kernel {
 
@@ -85,6 +86,9 @@ object Kernel {
         val input = AppPrefs.getInstance().input
         RimeEngine.setImeOption("traditionalization", input.chineseFanTi.getValue())
         RimeEngine.setImeOption("emoji", input.emojiInput.getValue())
+        // 词典里本来就混有繁体词条（好處 / 妳好），引擎的 traditionalization 只会追加转换，
+        // 不会删掉它们；关掉繁体输出时在装配候选这一步统一挡掉。
+        TraditionalGate.setOutputTraditional(input.chineseFanTi.getValue())
         // 模糊音：棱镜里的 fuzz 规则无法按选项停用（librime 1.11.2 的 algebra 不读选项名），
         // 开关交给 RimeEngine 装配候选时挡；组名与 FuzzySpellingGate.rewrites 一致。
         RimeEngine.setFuzzyGroups(buildSet {

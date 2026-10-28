@@ -68,7 +68,9 @@ object RimeEngine {
     ): List<Candidate> {
         val parsedTyped = FuzzySpellingGate.parseTyped(typed)
         val visible = page.mapIndexedNotNull { offset, candidate ->
-            if (!FuzzySpellingGate.keeps(candidate.comment, parsedTyped, enabledFuzzyGroups, encode)) {
+            if (!TraditionalGate.keeps(candidate.text)) {
+                null
+            } else if (!FuzzySpellingGate.keeps(candidate.comment, parsedTyped, enabledFuzzyGroups, encode)) {
                 null
             } else if (!SpellingCorrectionGate.keeps(candidate.comment, parsedTyped, spellingCorrection, encode)) {
                 null
