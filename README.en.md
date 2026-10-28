@@ -15,7 +15,7 @@ T9 · Full Pinyin · Shuangpin · L17 · Five-stroke · Handwriting · Offline v
 
 </div>
 
-> **Status: Pre-Alpha (`0.1.0-dev`).** The input pipeline runs end-to-end on emulators. arm64 device and OEM ROM coverage is still being filled in. There is no release recommended for daily use yet; to try it now, grab the [v0.1.0-dev preview build](https://github.com/xiaoyuan0459/qingyu-ime/releases) (debug-signed). See the [roadmap](ROADMAP.md) and [technical debt list](docs/TECHNICAL_DEBT.md).
+> **Status: Pre-Alpha (`0.1.1-dev`).** The input pipeline runs end-to-end on emulators. arm64 device and OEM ROM coverage is still being filled in. There is no release recommended for daily use yet; to try it now, grab the [v0.1.1-dev preview build](https://github.com/xiaoyuan0459/qingyu-ime/releases) (debug-signed). See the [roadmap](ROADMAP.md) and [technical debt list](docs/TECHNICAL_DEBT.md).
 
 ---
 
@@ -78,7 +78,7 @@ Package and assets:
 | Item | Size | Notes |
 | --- | --- | --- |
 | Debug APK | 74 MB | arm64-v8a + x86_64, x86_64 unstripped |
-| Pre-release `v0.1.0-dev` | 74 MB | The same debug build, attached to the GitHub Release with `SHA256SUMS.txt` |
+| Pre-release `v0.1.1-dev` | 74 MB | The same debug build, attached to the GitHub Release with `SHA256SUMS.txt` |
 | Release APK | Not published | arm64-v8a only, substantially smaller |
 | Bundled dictionary `rime-base.zip` | 36 MB | ~83 MB unpacked, one rollback version retained |
 | Handwriting model (int8) | 8.4 MB | 27,664 classes, bundled |

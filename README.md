@@ -15,7 +15,7 @@
 
 </div>
 
-> **状态：Pre-Alpha（`0.1.0-dev`）。** 输入链路已在模拟器上完整跑通，arm64 真机与厂商 ROM 覆盖仍在补。尚无推荐日常使用的正式版本；想先试用可以直接下 [v0.1.0-dev 预览包](https://github.com/xiaoyuan0459/qingyu-ime/releases)（debug 签名）。进度见[路线图](ROADMAP.md)与[技术债清单](docs/TECHNICAL_DEBT.md)。
+> **状态：Pre-Alpha（`0.1.1-dev`）。** 输入链路已在模拟器上完整跑通，arm64 真机与厂商 ROM 覆盖仍在补。尚无推荐日常使用的正式版本；想先试用可以直接下 [v0.1.1-dev 预览包](https://github.com/xiaoyuan0459/qingyu-ime/releases)（debug 签名）。进度见[路线图](ROADMAP.md)与[技术债清单](docs/TECHNICAL_DEBT.md)。
 
 ---
 
@@ -78,7 +78,7 @@
 | 项目 | 体积 | 说明 |
 | --- | --- | --- |
 | debug APK | 74 MB | 含 arm64-v8a 与 x86_64，x86_64 未 strip |
-| 预发布包 `v0.1.0-dev` | 74 MB | 同一个 debug 包，附在 GitHub Release，带 `SHA256SUMS.txt` |
+| 预发布包 `v0.1.1-dev` | 74 MB | 同一个 debug 包，附在 GitHub Release，带 `SHA256SUMS.txt` |
 | release APK | 未发布 | 仅 arm64-v8a，体积显著小于 debug |
 | 内置词库包 `rime-base.zip` | 36 MB | 解包约 83 MB，保留一层回滚版本 |
 | 手写模型 int8 | 8.4 MB | 27,664 类，随包分发 |
