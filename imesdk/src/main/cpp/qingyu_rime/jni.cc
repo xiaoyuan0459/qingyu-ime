@@ -26,6 +26,7 @@
 #include <jni.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <mutex>
 #include <string>
@@ -100,32 +101,122 @@ string ToStd(JNIEnv* env, jstring value) {
   return result;
 }
 
+/** 空串的全局引用，由 [InitJavaIds] 建立；候选注释、preedit 大量为空。 */
+jstring g_empty_string = nullptr;
+
 /**
  * 构造 Java String。
+ *
+ * 不能用 `NewStringUTF`：它按 JNI **modified UTF-8** 解码，而 librime 交出的是标准
+ * UTF-8。基本平面两者一致；补充平面（扩展 B 起，如 𭎂）在标准 UTF-8 里是 4 字节，
+ * 在 modified UTF-8 里是代理对的 6 字节，`NewStringUTF` 会把它解坏 —— 词库里的
+ * 生僻字候选因此在候选栏里显示成乱码或直接丢字。这里按标准 UTF-8 自己解成 UTF-16
+ * 再 `NewString`，非法字节输出 U+FFFD 并只前进一步，避免吞掉后续内容。
  *
  * C 侧的 char* 可能是 null（librime 大量使用 null 表示空），而 Kotlin 侧这些字段
  * 是非空的，直接传 null 会在构造函数里触发 `Intrinsics.checkNotNullParameter` 抛异常，
  * 故此处统一把 null 转成空串。
  */
 jstring MakeString(JNIEnv* env, const char* value) {
-  return env->NewStringUTF(value != nullptr ? value : "");
-}
-
-/** 查找类；失败时清掉挂起的异常，返回 null 让调用方降级。 */
-jclass FindClassQuiet(JNIEnv* env, const char* name) {
-  jclass cls = env->FindClass(name);
-  if (cls == nullptr) {
-    env->ExceptionClear();
+  if (value == nullptr) {
+    value = "";
   }
-  return cls;
-}
-
-jmethodID FindCtor(JNIEnv* env, jclass cls, const char* signature) {
-  jmethodID ctor = env->GetMethodID(cls, "<init>", signature);
-  if (ctor == nullptr) {
-    env->ExceptionClear();
+  if (*value == 0) {
+    if (g_empty_string != nullptr) {
+      return reinterpret_cast<jstring>(env->NewLocalRef(g_empty_string));
+    }
+    return env->NewStringUTF("");
   }
-  return ctor;
+  // 基本平面（汉字、拼音、标点）在标准 UTF-8 与 modified UTF-8 的字节表示相同，
+  // 直接交给 NewStringUTF 走 native 解码；只有 4 字节序列（扩展 B 起）、非法首字节
+  // 或标准 UTF-8 不会出现的 0xC0/0xC1 才走下面的手写解码。
+  bool needs_decoder = false;
+  const unsigned char* probe = reinterpret_cast<const unsigned char*>(value);
+  while (*probe != 0) {
+    const unsigned char byte = *probe;
+    if (byte < 0x80) {
+      probe += 1;
+    } else if (byte <= 0xC1) {
+      // 0x80–0xBF 是非法首字节，0xC0/0xC1 是 overlong 两字节首字节。
+      needs_decoder = true;
+      break;
+    } else if ((byte & 0xE0) == 0xC0) {
+      if (probe[1] == 0) {
+        needs_decoder = true;
+        break;
+      }
+      probe += 2;
+    } else if ((byte & 0xF0) == 0xE0) {
+      if (probe[1] == 0 || probe[2] == 0) {
+        needs_decoder = true;
+        break;
+      }
+      probe += 3;
+    } else if ((byte & 0xF8) == 0xF0) {
+      // 4 字节序列：补充平面，modified UTF-8 与标准 UTF-8 不同，必须手写解码。
+      needs_decoder = true;
+      break;
+    } else {
+      needs_decoder = true;
+      break;
+    }
+  }
+  if (!needs_decoder) {
+    return env->NewStringUTF(value);
+  }
+
+  std::vector<jchar> units;
+  units.reserve(std::strlen(value));
+  const unsigned char* cursor = reinterpret_cast<const unsigned char*>(value);
+  while (*cursor != 0) {
+    const unsigned char lead = *cursor;
+    size_t length = 1;
+    uint32_t code_point = 0;
+    if (lead < 0x80) {
+      code_point = lead;
+    } else if ((lead & 0xE0) == 0xC0) {
+      length = 2;
+      code_point = lead & 0x1F;
+    } else if ((lead & 0xF0) == 0xE0) {
+      length = 3;
+      code_point = lead & 0x0F;
+    } else if ((lead & 0xF8) == 0xF0) {
+      length = 4;
+      code_point = lead & 0x07;
+    } else {
+      code_point = 0xFFFD;
+    }
+    bool valid = length > 1;
+    for (size_t i = 1; valid && i < length; ++i) {
+      const unsigned char continuation = cursor[i];
+      if ((continuation & 0xC0) != 0x80) {
+        valid = false;
+        break;
+      }
+      code_point = (code_point << 6) | (continuation & 0x3F);
+    }
+    if (!valid && length > 1) {
+      code_point = 0xFFFD;
+      length = 1;
+    }
+    if (code_point <= 0xFFFF) {
+      units.push_back(static_cast<jchar>(code_point));
+    } else if (code_point <= 0x10FFFF) {
+      const uint32_t offset = code_point - 0x10000;
+      units.push_back(static_cast<jchar>(0xD800 + (offset >> 10)));
+      units.push_back(static_cast<jchar>(0xDC00 + (offset & 0x3FF)));
+    } else {
+      units.push_back(static_cast<jchar>(0xFFFD));
+    }
+    cursor += length;
+  }
+  if (units.empty()) {
+    if (g_empty_string != nullptr) {
+      return reinterpret_cast<jstring>(env->NewLocalRef(g_empty_string));
+    }
+    return env->NewStringUTF("");
+  }
+  return env->NewString(units.data(), static_cast<jint>(units.size()));
 }
 
 // ------------------------------------------------------------------ 数据类构造
@@ -163,48 +254,130 @@ constexpr char kInputContextCtor[] =
     "Lcom/qingyu/inputmethod/core/CandidateMenu;"
     "Ljava/lang/String;[Ljava/lang/String;)V";
 
-jobject NewCandidate(JNIEnv* env, const RimeCandidate& src) {
-  jclass cls = FindClassQuiet(env, kCandidateCls);
+/**
+ * 进程内不变的类与方法句柄。
+ *
+ * 此前每条候选都 `FindClass` + `GetMethodID` 一次：`menu.page_size = 100` 时，
+ * 每个按键光这一步就是 200 次类查找（FindClass 要走 ClassLoader 的锁与哈希），
+ * 是 JNI 侧最大的一笔固定开销。类名与构造函数签名不随运行状态变化，首次使用时
+ * 转成全局引用缓存即可；失败只尝试一次，避免坏了以后每键重试。
+ */
+struct JavaIds {
+  bool ready = false;
+  jclass candidate_cls = nullptr;
+  jmethodID candidate_ctor = nullptr;
+  jclass schema_cls = nullptr;
+  jmethodID schema_ctor = nullptr;
+  jclass commit_cls = nullptr;
+  jmethodID commit_ctor = nullptr;
+  jclass composition_cls = nullptr;
+  jmethodID composition_ctor = nullptr;
+  jclass candidate_menu_cls = nullptr;
+  jmethodID candidate_menu_ctor = nullptr;
+  jclass status_cls = nullptr;
+  jmethodID status_ctor = nullptr;
+  jclass input_context_cls = nullptr;
+  jmethodID input_context_ctor = nullptr;
+  jclass string_cls = nullptr;
+};
+
+JavaIds g_java_ids;
+std::once_flag g_java_ids_once;
+
+jclass CacheClass(JNIEnv* env, const char* name) {
+  jclass local = env->FindClass(name);
+  if (local == nullptr) {
+    env->ExceptionClear();
+    return nullptr;
+  }
+  jclass global = reinterpret_cast<jclass>(env->NewGlobalRef(local));
+  env->DeleteLocalRef(local);
+  return global;
+}
+
+jmethodID CacheCtor(JNIEnv* env, jclass cls, const char* signature) {
   if (cls == nullptr) {
     return nullptr;
   }
-  jmethodID ctor = FindCtor(env, cls, kCandidateCtor);
+  jmethodID ctor = env->GetMethodID(cls, "<init>", signature);
   if (ctor == nullptr) {
-    return nullptr;
+    env->ExceptionClear();
   }
+  return ctor;
+}
+
+void InitJavaIds(JNIEnv* env) {
+  g_java_ids.candidate_cls = CacheClass(env, kCandidateCls);
+  g_java_ids.candidate_ctor = CacheCtor(env, g_java_ids.candidate_cls, kCandidateCtor);
+  g_java_ids.schema_cls = CacheClass(env, kSchemaCls);
+  g_java_ids.schema_ctor = CacheCtor(env, g_java_ids.schema_cls, kSchemaCtor);
+  g_java_ids.commit_cls = CacheClass(env, kCommitCls);
+  g_java_ids.commit_ctor = CacheCtor(env, g_java_ids.commit_cls, kCommitCtor);
+  g_java_ids.composition_cls = CacheClass(env, kCompositionCls);
+  g_java_ids.composition_ctor = CacheCtor(env, g_java_ids.composition_cls, kCompositionCtor);
+  g_java_ids.candidate_menu_cls = CacheClass(env, kCandidateMenuCls);
+  g_java_ids.candidate_menu_ctor =
+      CacheCtor(env, g_java_ids.candidate_menu_cls, kCandidateMenuCtor);
+  g_java_ids.status_cls = CacheClass(env, kStatusCls);
+  g_java_ids.status_ctor = CacheCtor(env, g_java_ids.status_cls, kStatusCtor);
+  g_java_ids.input_context_cls = CacheClass(env, kInputContextCls);
+  g_java_ids.input_context_ctor =
+      CacheCtor(env, g_java_ids.input_context_cls, kInputContextCtor);
+  g_java_ids.string_cls = CacheClass(env, "java/lang/String");
+  g_empty_string = reinterpret_cast<jstring>(env->NewGlobalRef(env->NewStringUTF("")));
+  g_java_ids.ready = g_java_ids.candidate_cls != nullptr &&
+                     g_java_ids.candidate_ctor != nullptr &&
+                     g_java_ids.commit_cls != nullptr &&
+                     g_java_ids.commit_ctor != nullptr &&
+                     g_java_ids.composition_cls != nullptr &&
+                     g_java_ids.composition_ctor != nullptr &&
+                     g_java_ids.candidate_menu_cls != nullptr &&
+                     g_java_ids.candidate_menu_ctor != nullptr &&
+                     g_java_ids.status_cls != nullptr &&
+                     g_java_ids.status_ctor != nullptr &&
+                     g_java_ids.input_context_cls != nullptr &&
+                     g_java_ids.input_context_ctor != nullptr &&
+                     g_java_ids.string_cls != nullptr;
+}
+
+/** 首次调用初始化；之后只读 `ready`。调用方在返回 false 时按旧语义降级。 */
+bool EnsureJavaIds(JNIEnv* env) {
+  std::call_once(g_java_ids_once, [env]() { InitJavaIds(env); });
+  return g_java_ids.ready;
+}
+
+jobject NewCandidate(JNIEnv* env, const RimeCandidate& src) {
   jstring comment = MakeString(env, src.comment);
   jstring text = MakeString(env, src.text);
-  jobject obj = env->NewObject(cls, ctor, comment, text);
+  jobject obj = env->NewObject(g_java_ids.candidate_cls, g_java_ids.candidate_ctor,
+                               comment, text);
   env->DeleteLocalRef(comment);
   env->DeleteLocalRef(text);
+  if (obj == nullptr) {
+    env->ExceptionClear();
+  }
   return obj;
 }
 
 jobject NewComposition(JNIEnv* env, const RimeComposition& src) {
-  jclass cls = FindClassQuiet(env, kCompositionCls);
-  if (cls == nullptr) {
-    return nullptr;
-  }
-  jmethodID ctor = FindCtor(env, cls, kCompositionCtor);
-  if (ctor == nullptr) {
-    return nullptr;
-  }
   jstring preedit = MakeString(env, src.preedit);
-  jobject obj = env->NewObject(cls, ctor, static_cast<jint>(src.length),
+  jobject obj = env->NewObject(g_java_ids.composition_cls,
+                               g_java_ids.composition_ctor,
+                               static_cast<jint>(src.length),
                                static_cast<jint>(src.cursor_pos),
                                static_cast<jint>(src.sel_start),
                                static_cast<jint>(src.sel_end), preedit);
   env->DeleteLocalRef(preedit);
+  if (obj == nullptr) {
+    env->ExceptionClear();
+  }
   return obj;
 }
 
 jobject NewCandidateMenu(JNIEnv* env, const RimeMenu& src) {
-  jclass cand_cls = FindClassQuiet(env, kCandidateCls);
-  if (cand_cls == nullptr) {
-    return nullptr;
-  }
   const int count = src.num_candidates > 0 ? src.num_candidates : 0;
-  jobjectArray candidates = env->NewObjectArray(count, cand_cls, nullptr);
+  jobjectArray candidates =
+      env->NewObjectArray(count, g_java_ids.candidate_cls, nullptr);
   if (candidates == nullptr) {
     env->ExceptionClear();
     return nullptr;
@@ -212,40 +385,33 @@ jobject NewCandidateMenu(JNIEnv* env, const RimeMenu& src) {
   for (int i = 0; i < count; ++i) {
     jobject item = NewCandidate(env, src.candidates[i]);
     if (item == nullptr) {
-      continue;
+      // Kotlin 的 Array<Candidate> 不接受 null 元素；宁可整页降级，也不要把
+      // 带洞的数组交给上层（后续 candidate.text 会直接 NPE）。
+      env->DeleteLocalRef(candidates);
+      return nullptr;
     }
     env->SetObjectArrayElement(candidates, i, item);
     env->DeleteLocalRef(item);
   }
 
-  jclass cls = FindClassQuiet(env, kCandidateMenuCls);
-  if (cls == nullptr) {
-    return nullptr;
+  jobject obj = env->NewObject(
+      g_java_ids.candidate_menu_cls, g_java_ids.candidate_menu_ctor,
+      static_cast<jint>(src.page_size), static_cast<jint>(src.page_no),
+      static_cast<jboolean>(src.is_last_page != 0),
+      static_cast<jint>(src.highlighted_candidate_index),
+      static_cast<jint>(src.num_candidates), candidates);
+  env->DeleteLocalRef(candidates);
+  if (obj == nullptr) {
+    env->ExceptionClear();
   }
-  jmethodID ctor = FindCtor(env, cls, kCandidateMenuCtor);
-  if (ctor == nullptr) {
-    return nullptr;
-  }
-  return env->NewObject(cls, ctor, static_cast<jint>(src.page_size),
-                        static_cast<jint>(src.page_no),
-                        static_cast<jboolean>(src.is_last_page != 0),
-                        static_cast<jint>(src.highlighted_candidate_index),
-                        static_cast<jint>(src.num_candidates), candidates);
+  return obj;
 }
 
 jobject NewStatus(JNIEnv* env, const RimeStatus& src) {
-  jclass cls = FindClassQuiet(env, kStatusCls);
-  if (cls == nullptr) {
-    return nullptr;
-  }
-  jmethodID ctor = FindCtor(env, cls, kStatusCtor);
-  if (ctor == nullptr) {
-    return nullptr;
-  }
   jstring schema_id = MakeString(env, src.schema_id);
   jstring schema_name = MakeString(env, src.schema_name);
   jobject obj = env->NewObject(
-      cls, ctor, schema_id, schema_name,
+      g_java_ids.status_cls, g_java_ids.status_ctor, schema_id, schema_name,
       static_cast<jboolean>(src.is_disabled != 0),
       static_cast<jboolean>(src.is_composing != 0),
       static_cast<jboolean>(src.is_ascii_mode != 0),
@@ -255,12 +421,14 @@ jobject NewStatus(JNIEnv* env, const RimeStatus& src) {
       static_cast<jboolean>(src.is_ascii_punct != 0));
   env->DeleteLocalRef(schema_id);
   env->DeleteLocalRef(schema_name);
+  if (obj == nullptr) {
+    env->ExceptionClear();
+  }
   return obj;
 }
 
 jobject NewInputContext(JNIEnv* env, const RimeContext& src) {
-  jclass string_cls = FindClassQuiet(env, "java/lang/String");
-  if (string_cls == nullptr) {
+  if (!EnsureJavaIds(env)) {
     return nullptr;
   }
   // select_labels 是 null 结尾的 char* 数组
@@ -271,7 +439,7 @@ jobject NewInputContext(JNIEnv* env, const RimeContext& src) {
     }
   }
   jobjectArray labels =
-      env->NewObjectArray(label_count, string_cls, nullptr);
+      env->NewObjectArray(label_count, g_java_ids.string_cls, nullptr);
   if (labels == nullptr) {
     env->ExceptionClear();
     return nullptr;
@@ -286,17 +454,16 @@ jobject NewInputContext(JNIEnv* env, const RimeContext& src) {
   jobject menu = NewCandidateMenu(env, src.menu);
   jstring preview = MakeString(env, src.commit_text_preview);
 
-  jclass cls = FindClassQuiet(env, kInputContextCls);
-  if (cls == nullptr) {
-    return nullptr;
-  }
-  jmethodID ctor = FindCtor(env, cls, kInputContextCtor);
-  if (ctor == nullptr) {
-    return nullptr;
-  }
-  jobject obj = env->NewObject(cls, ctor, composition, menu, preview, labels);
+  jobject obj = env->NewObject(g_java_ids.input_context_cls,
+                               g_java_ids.input_context_ctor,
+                               composition, menu, preview, labels);
   env->DeleteLocalRef(preview);
   env->DeleteLocalRef(labels);
+  if (composition != nullptr) env->DeleteLocalRef(composition);
+  if (menu != nullptr) env->DeleteLocalRef(menu);
+  if (obj == nullptr) {
+    env->ExceptionClear();
+  }
   return obj;
 }
 
@@ -422,6 +589,11 @@ Java_com_qingyu_inputmethod_core_RimeSession_nativeStart(
     return JNI_FALSE;
   }
   g_session = session;
+  // 在 Java 调用栈上初始化一次 JNI 句柄缓存，避免后台线程首次 FindClass 时
+  // 落到与 App 不同的 ClassLoader 上下文。
+  if (!EnsureJavaIds(env)) {
+    QY_LOGW("JNI 数据类句柄初始化失败 —— 检查 EngineTypes.kt 与 jni.cc 的类名/签名");
+  }
   char current_schema[256] = {0};
   if (RimeGetCurrentSchema(g_session, current_schema, sizeof(current_schema))) {
     QY_LOGD("会话已建立，当前方案 = %s", current_schema);
@@ -564,13 +736,14 @@ JNIEXPORT jobject JNICALL Java_com_qingyu_inputmethod_core_RimeSession_nativeCom
   if (!RimeGetCommit(g_session, &commit)) {
     return nullptr;
   }
-  jclass cls = FindClassQuiet(env, kCommitCls);
-  jmethodID ctor = cls != nullptr ? FindCtor(env, cls, kCommitCtor) : nullptr;
   jobject result = nullptr;
-  if (ctor != nullptr) {
+  if (EnsureJavaIds(env)) {
     jstring text = MakeString(env, commit.text);
-    result = env->NewObject(cls, ctor, text);
+    result = env->NewObject(g_java_ids.commit_cls, g_java_ids.commit_ctor, text);
     env->DeleteLocalRef(text);
+    if (result == nullptr) {
+      env->ExceptionClear();
+    }
   }
   RimeFreeCommit(&commit);
   return result;
@@ -609,6 +782,10 @@ JNIEXPORT jobject JNICALL Java_com_qingyu_inputmethod_core_RimeSession_nativeSta
   RIME_STRUCT_INIT(RimeStatus, status);
   if (!RimeGetStatus(g_session, &status)) {
     QY_LOGW("RimeGetStatus 返回 false");
+    return nullptr;
+  }
+  if (!EnsureJavaIds(env)) {
+    RimeFreeStatus(&status);
     return nullptr;
   }
   QY_LOGD("status: schema=%s composing=%d ascii_mode=%d disabled=%d",
@@ -708,10 +885,9 @@ Java_com_qingyu_inputmethod_core_RimeSession_nativeAssociationProbe(
   std::lock_guard<std::mutex> lock(g_mutex);
   const auto words = g_session == 0 ? vector<string>{} :
       QueryAssociation(ToStd(env, input), ToStd(env, prefix), max_pages);
-  jclass string_class = env->FindClass("java/lang/String");
-  if (!string_class) return nullptr;
-  jobjectArray result = env->NewObjectArray(words.size(), string_class, nullptr);
-  env->DeleteLocalRef(string_class);
+  if (!EnsureJavaIds(env)) return nullptr;
+  jobjectArray result = env->NewObjectArray(words.size(), g_java_ids.string_cls,
+                                            nullptr);
   if (!result) return nullptr;
   for (size_t i = 0; i < words.size(); ++i) {
     jstring word = MakeString(env, words[i].c_str());
@@ -729,10 +905,9 @@ Java_com_qingyu_inputmethod_core_RimeSession_nativeStrokeWildcard(
   std::lock_guard<std::mutex> lock(g_mutex);
   const auto words = g_session == 0 ? vector<string>{} :
       QueryStrokeWildcard(ToStd(env, pattern), max_candidates);
-  jclass string_class = env->FindClass("java/lang/String");
-  if (!string_class) return nullptr;
-  jobjectArray result = env->NewObjectArray(words.size(), string_class, nullptr);
-  env->DeleteLocalRef(string_class);
+  if (!EnsureJavaIds(env)) return nullptr;
+  jobjectArray result = env->NewObjectArray(words.size(), g_java_ids.string_cls,
+                                            nullptr);
   if (!result) return nullptr;
   for (size_t i = 0; i < words.size(); ++i) {
     jstring word = MakeString(env, words[i].c_str());
@@ -754,10 +929,9 @@ Java_com_qingyu_inputmethod_core_RimeSession_nativeStrokeCodes(
   env->GetByteArrayRegion(characters, 0, size, reinterpret_cast<jbyte*>(input.data()));
   if (env->ExceptionCheck()) return nullptr;
   const auto codes = LookupStrokeCodes(ToStd(env, path), input);
-  jclass cls = env->FindClass("java/lang/String");
-  if (!cls) return nullptr;
-  jobjectArray result = env->NewObjectArray(codes.size(), cls, nullptr);
-  env->DeleteLocalRef(cls);
+  if (!EnsureJavaIds(env)) return nullptr;
+  jobjectArray result = env->NewObjectArray(codes.size(), g_java_ids.string_cls,
+                                            nullptr);
   if (!result) return nullptr;
   for (size_t i = 0; i < codes.size(); ++i) {
     jstring code = MakeString(env, codes[i].c_str());

@@ -3,7 +3,7 @@ package com.qingyu.imemodule.service
 import android.view.KeyEvent
 import androidx.lifecycle.MutableLiveData
 import com.qingyu.imemodule.application.CustomConstant
-import com.qingyu.inputmethod.TraditionalGate
+import com.qingyu.inputmethod.SimplifiedText
 import com.qingyu.inputmethod.core.Candidate
 import com.qingyu.inputmethod.core.Kernel
 import com.qingyu.imemodule.manager.InputModeSwitcher
@@ -27,7 +27,6 @@ object DecodingInfo {
     private var associationJob: Job? = null
     private var associationRequest = 0L
     private var associationWarmGeneration = -1L
-    private var traditionalWarmed = false
 
     private var associationAppliedSequence = 0
 
@@ -64,13 +63,14 @@ object DecodingInfo {
         }
     }
 
-    /** 繁体过滤表在后台解析，避免第一次按键同步读 43KB 资源。 */
-    fun warmTraditional() {
-        if (traditionalWarmed) return
-        traditionalWarmed = true
+    /**
+     * 联想/通配用的 OpenCC t2s 表在后台解析，避免第一次查询同步读 40KB 资源。
+     * 不设一次性标记：繁体开关可能来回切，`warm()` 自己会跳过已加载 / 繁体输出态。
+     */
+    fun warmSimplifiedText() {
         associationScope.launch {
             runCatching {
-                runInterruptible(Dispatchers.IO) { TraditionalGate.warm() }
+                runInterruptible(Dispatchers.IO) { SimplifiedText.warm() }
             }
         }
     }
@@ -163,14 +163,17 @@ object DecodingInfo {
         strokePatternJob = associationScope.launch {
             val result = withTimeoutOrNull(1500) {
                 runInterruptible(Dispatchers.IO) {
+                    // 通配走独立只读会话，拿不到主会话的 simplification 选项；在 IO 线程上
+                    // 用同一份 OpenCC 数据做 t2s，避免把 40KB 表的首次解析留给主线程。
                     RimeSession.strokeWildcard(pattern, STROKE_WILDCARD_MAX)
+                        .asSequence()
+                        .map(SimplifiedText::forOutput)
+                        .distinct()
+                        .toList()
                 }
             } ?: return@launch
             if (request != strokePatternRequest || strokePattern != pattern) return@launch
-            val list = result.asSequence()
-                .filter(TraditionalGate::keeps)
-                .map { Candidate("", it) }
-                .toList()
+            val list = result.map { Candidate("", it) }
             isAssociate = false
             isHandwriting = false
             isClipboardSuggestion = false

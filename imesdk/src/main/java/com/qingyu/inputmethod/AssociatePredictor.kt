@@ -31,7 +31,7 @@ object AssociatePredictor {
     private const val MAX_PAGES = 2
     /** 返回给候选栏的联想词上限：展开面板可以完整浏览。 */
     private const val MAX_WORDS = 100
-    /** 扫描阶段的合并上限：先多收一些，繁体过滤后仍能凑满 [MAX_WORDS]。 */
+    /** 扫描阶段的合并上限：先多收一些，简繁转换合并重复项后仍能凑满 [MAX_WORDS]。 */
     private const val MAX_SCAN_WORDS = 240
     private const val MAX_HABITS_PER_KEY = 8
     private const val MAX_PERSISTED_WORDS = 240
@@ -122,7 +122,9 @@ object AssociatePredictor {
     private fun decorate(found: List<String>, key: Char): List<String> {
         val learned = habitOf(key)
         val merged = if (learned.isEmpty()) found else (learned + found).distinct()
-        return merged.filter(TraditionalGate::keeps).take(MAX_WORDS)
+        // 联想走独立会话，不经主会话的 simplifier(t2s)；在这里按同一份 OpenCC 数据转换。
+        // 只转换、不丢弃：旧实现逐字反查后整条挡掉，会误杀「乾隆」这类简体保留古字的词。
+        return merged.map(SimplifiedText::forOutput).distinct().take(MAX_WORDS)
     }
 
     /** 按「各次探测内的名次」轮转合并，让每个声母的头名先出场。 */

@@ -1045,7 +1045,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         chinesePrediction = editorContext?.allowsSuggestions != false && appPrefs.input.chinesePrediction.getValue()
         // 设置页在另一个进程；回到键盘时补一次引擎选项，繁体/Emoji 开关不必等换输入框才生效。
         Kernel.nativeUpdateImeOption()
-        DecodingInfo.warmTraditional()
+        DecodingInfo.warmSimplifiedText()
         if (chinesePrediction) DecodingInfo.warmAssociation()
     }
 

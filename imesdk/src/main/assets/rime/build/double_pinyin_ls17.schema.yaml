@@ -6,6 +6,7 @@ emoji:
 engine:
   filters:
     - "simplifier@emoji"
+    - simplifier                # t2s：关闭繁体时把词典 / 用户词库里的繁体候选转成简体
     - "simplifier@traditionalize"
     - uniquifier
   processors:
@@ -462,9 +463,19 @@ speller:
     - derive/^o$/qo/
     - abbrev/^([a-z]).+$/$1/      # 超级简拼：单字母
     - abbrev/^([zcs]h).+$/$1/     # 简拼里 zh/ch/sh 视为整体
+# 关闭「繁体输入」时由引擎侧 OpenCC 做 t2s，而不是在应用侧按字反查后丢弃候选：
+# 短语表（TSPhrases）保护「乾坤」「乾隆」「瞭望」这类简体里保留古字的词，逐字表
+# 按 OpenCC 的默认值处理多写法，不会再误杀合法简体词。
+# 打开繁体时本过滤器关闭（simplification=false），由下面的 traditionalize 做 s2t。
+simplifier:
+  opencc_config: t2s.json
+  option_name: simplification
+  # 转换后的候选必须保留原始读音注释：RimeEngine 的模糊音/纠错归因与来源排序都靠它。
+  inherit_comment: true
 traditionalize:
   opencc_config: s2t.json
   option_name: traditionalization
+  inherit_comment: true
 translator:
   always_show_comments: true
   dictionary: pinyin

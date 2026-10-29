@@ -80,7 +80,7 @@ object CustomEngine {
     fun processPhrase(text: String): MutableList<String> {
         val phrases = mutableListOf<String>()
         if (getInstance().input.phraseCandidates.getValue()) {
-            phrases.addAll(ImeDataRepository.phrasesForCode(text).map { it.content })
+            phrases.addAll(ImeDataRepository.phraseContentsForCode(text))
         }
         if (getInstance().input.datetimeShortcut.getValue()) {
             if (datetimeShortcutDate.any { it == text }) {

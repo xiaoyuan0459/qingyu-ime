@@ -56,6 +56,8 @@ std::vector<std::string> QueryStrokeWildcard(const std::string& pattern,
     // 只读查询：不打开用户词库，避免与主会话争同一份 LevelDB。
     RimeSetOption(session, "disable_user_dict", True);
     RimeSetOption(session, "traditionalization", False);
+    // 通配结果由应用侧 SimplifiedText 统一转换；这里不要重复开引擎 t2s。
+    RimeSetOption(session, "simplification", False);
     RimeSetOption(session, "emoji", False);
   }
 
