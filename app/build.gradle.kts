@@ -52,10 +52,18 @@ android {
             val keystorePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: keystoreProperties.getProperty("storePassword")
             val keyAliasName = System.getenv("RELEASE_KEY_ALIAS") ?: keystoreProperties.getProperty("keyAlias")
             val keyPasswordValue = System.getenv("RELEASE_KEY_PASSWORD") ?: keystoreProperties.getProperty("keyPassword")
+            // .jks 只是常见后缀，内容不一定是 JKS：这里按后缀选 storeType，也允许用
+            // RELEASE_STORE_TYPE / keystore.properties 的 storeType 显式覆盖。
+            val keystoreType = System.getenv("RELEASE_STORE_TYPE")
+                ?: keystoreProperties.getProperty("storeType")
+                ?: if (keystoreFilePath?.endsWith(".p12", ignoreCase = true) == true ||
+                    keystoreFilePath?.endsWith(".pfx", ignoreCase = true) == true
+                ) "PKCS12" else "JKS"
             if (keystoreFilePath != null) {
                 val keystoreFile = rootProject.file(keystoreFilePath)
                 if (keystoreFile.exists() && keystorePassword != null && keyAliasName != null && keyPasswordValue != null) {
                     storeFile = keystoreFile
+                    storeType = keystoreType
                     storePassword = keystorePassword
                     keyAlias = keyAliasName
                     keyPassword = keyPasswordValue
