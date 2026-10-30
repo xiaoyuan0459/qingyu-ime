@@ -99,12 +99,7 @@ class ToolboxFragment : Fragment() {
             destination(R.string.setting_ime_prefixs, R.drawable.ic_menu_edit, R.id.sidebarSymbolFragment),
             destination(R.string.dictionary_and_backup, R.drawable.ic_menu_phrases, R.id.dataSettingsFragment),
 
-            toggle(R.string.setting_jian_fan, R.drawable.ic_menu_fanti,
-                checked = { prefs.input.chineseFanTi.getValue() },
-            ) {
-                prefs.input.chineseFanTi.setValue(!prefs.input.chineseFanTi.getValue())
-                Kernel.nativeUpdateImeOption()
-            },
+            destination(R.string.setting_jian_fan, R.drawable.ic_menu_fanti, R.id.inputSettingsFragment),
             toggle(R.string.keyboard_theme_night, R.drawable.ic_menu_dark,
                 checked = { ThemeManager.activeTheme.isDark },
             ) {

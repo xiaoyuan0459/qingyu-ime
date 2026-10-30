@@ -77,10 +77,15 @@ jobs:
         run: |
           python tools/bootstrap-native-deps.py --check
           python tools/check-native-licenses.py
+          python tools/check-native-pack.py
       - name: Build and lint
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleOfflineDebug :imesdk:lintOfflineDebug :app:lintOfflineDebug --max-workers=2 --warning-mode=all
+          ./gradlew :app:assembleOfflineDebug :imesdk:testOfflineDebugUnitTest :imesdk:lintOfflineDebug :app:lintOfflineDebug --max-workers=2 --warning-mode=all
+          mkdir -p dist
+          cp app/build/outputs/apk/offline/debug/*.apk dist/
+          ./gradlew :app:assembleOfflineRelease :app:lintOfflineRelease -PqingyuUnsignedRelease=true --max-workers=2 --warning-mode=all
+          cp app/build/outputs/apk/offline/release/*-unsigned.apk dist/
           ./gradlew -I tools/dependency-inventory.gradle :app:writeDependencyInventory --max-workers=2
           git diff --exit-code -- imesdk/schemas
           git diff --check
@@ -90,11 +95,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: offline-debug-${{ github.sha }}
+          name: android-build-${{ github.sha }}
           path: |
-            app/build/outputs/apk/offline/debug/*.apk
+            dist/*.apk
             app/build/reports/lint-results-offlineDebug.*
             imesdk/build/reports/lint-results-offlineDebug.*
+            app/build/reports/lint-results-offlineRelease.*
+            imesdk/build/test-results/testOfflineDebugUnitTest/*.xml
             app/build/reports/dependency-inventory.json
           if-no-files-found: warn
           retention-days: 7
@@ -105,49 +112,21 @@ jobs:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
-  # 打 tag 推送时把同一次运行的 APK 附加到 GitHub Release。
-  # 复用 android 作业的产物，不重复编译；用预装的 gh 下载与发布，避免再引入第三方 action。
+  # Private release keys remain local. The tag workflow prepares a draft after CI passes.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: android
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - name: Download build artifact
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh run download "$GITHUB_RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name "offline-debug-$GITHUB_SHA" \
-            --dir dist
-      - name: Write checksums
-        run: |
-          cd dist
-          # gh run download 会保留 artifact 内的目录结构，这里只留文件名，避免发布出 app/build/... 这种路径。
-          : > SHA256SUMS.txt
-          while IFS= read -r -d '' apk; do
-            printf '%s  %s\n' "$(sha256sum "$apk" | cut -d' ' -f1)" "$(basename "$apk")" >> SHA256SUMS.txt
-          done < <(find . -name '*.apk' -print0)
-          cat SHA256SUMS.txt
-      - name: Publish release
+      - name: Prepare draft for locally verified signing
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          mapfile -t apks < <(find dist -name '*.apk')
-          if [[ ${#apks[@]} -eq 0 ]]; then
-            echo "没有找到 APK，跳过发布" >&2
-            exit 1
-          fi
-          # 这个作业不 checkout 仓库，gh 无法从工作区推断仓库，必须显式 --repo。
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${apks[@]}" dist/SHA256SUMS.txt \
-              --repo "$GITHUB_REPOSITORY" --clobber
-          else
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "$TAG" --prerelease --generate-notes \
-              dist/SHA256SUMS.txt "${apks[@]}"
+              --title "$TAG" --draft --prerelease --generate-notes
           fi

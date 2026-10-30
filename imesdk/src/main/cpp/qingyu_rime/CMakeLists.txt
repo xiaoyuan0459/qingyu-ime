@@ -260,6 +260,7 @@ add_subdirectory(${LIBRIME_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/librime-build EXCLU
 
 add_library(qingyu_rime SHARED
   ${CMAKE_CURRENT_LIST_DIR}/jni.cc
+    ${CMAKE_CURRENT_LIST_DIR}/native_script.cc
   ${CMAKE_CURRENT_LIST_DIR}/association.cc
   ${CMAKE_CURRENT_LIST_DIR}/stroke_lookup.cc
   ${CMAKE_CURRENT_LIST_DIR}/stroke_wildcard.cc
@@ -323,7 +324,7 @@ target_link_libraries(qingyu_deployer
 # 读已部署的 prism/table 二进制，导出「哪些码被接受 → 解析成哪些音节」的 TSV，
 # 用于把「重编 speller/algebra 后码空间不变」变成可差分校验的事。
 # 理由见 probe.cc 头部注释。同样不打进 APK。
-add_executable(qingyu_probe ${CMAKE_CURRENT_LIST_DIR}/probe.cc)
+add_executable(qingyu_probe ${CMAKE_CURRENT_LIST_DIR}/probe.cc ${CMAKE_CURRENT_LIST_DIR}/native_script.cc)
 
 target_include_directories(qingyu_probe PRIVATE
   ${LIBRIME_ROOT}/src

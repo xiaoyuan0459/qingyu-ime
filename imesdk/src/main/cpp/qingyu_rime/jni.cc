@@ -38,6 +38,7 @@
 #include "association.h"
 #include "stroke_lookup.h"
 #include "stroke_wildcard.h"
+#include "native_script.h"
 
 // librime 的「按键名 → 键码」查表函数，实现在 src/rime/key_table.cc。
 //
@@ -266,6 +267,7 @@ struct JavaIds {
   bool ready = false;
   jclass candidate_cls = nullptr;
   jmethodID candidate_ctor = nullptr;
+  jfieldID candidate_original = nullptr;
   jclass schema_cls = nullptr;
   jmethodID schema_ctor = nullptr;
   jclass commit_cls = nullptr;
@@ -309,6 +311,8 @@ jmethodID CacheCtor(JNIEnv* env, jclass cls, const char* signature) {
 void InitJavaIds(JNIEnv* env) {
   g_java_ids.candidate_cls = CacheClass(env, kCandidateCls);
   g_java_ids.candidate_ctor = CacheCtor(env, g_java_ids.candidate_cls, kCandidateCtor);
+  if (g_java_ids.candidate_cls)
+    g_java_ids.candidate_original = env->GetFieldID(g_java_ids.candidate_cls, "isOriginal", "Z");
   g_java_ids.schema_cls = CacheClass(env, kSchemaCls);
   g_java_ids.schema_ctor = CacheCtor(env, g_java_ids.schema_cls, kSchemaCtor);
   g_java_ids.commit_cls = CacheClass(env, kCommitCls);
@@ -327,6 +331,7 @@ void InitJavaIds(JNIEnv* env) {
   g_empty_string = reinterpret_cast<jstring>(env->NewGlobalRef(env->NewStringUTF("")));
   g_java_ids.ready = g_java_ids.candidate_cls != nullptr &&
                      g_java_ids.candidate_ctor != nullptr &&
+                     g_java_ids.candidate_original != nullptr &&
                      g_java_ids.commit_cls != nullptr &&
                      g_java_ids.commit_ctor != nullptr &&
                      g_java_ids.composition_cls != nullptr &&
@@ -384,6 +389,8 @@ jobject NewCandidateMenu(JNIEnv* env, const RimeMenu& src) {
   }
   for (int i = 0; i < count; ++i) {
     jobject item = NewCandidate(env, src.candidates[i]);
+    if (item && IsOriginalCandidate(g_session, static_cast<size_t>(src.page_no * src.page_size + i)))
+      env->SetBooleanField(item, g_java_ids.candidate_original, JNI_TRUE);
     if (item == nullptr) {
       // Kotlin 的 Array<Candidate> 不接受 null 元素；宁可整页降级，也不要把
       // 带洞的数组交给上层（后续 candidate.text 会直接 NPE）。
@@ -580,6 +587,7 @@ Java_com_qingyu_inputmethod_core_RimeSession_nativeStart(
   RimeSetup(&traits);
   QY_LOGD("→ RimeInitialize");
   RimeInitialize(&traits);
+  RegisterNativeScriptTranslator();
   QY_LOGD("→ RimeCreateSession");
   const RimeSessionId session = RimeCreateSession();
   QY_LOGD("← RimeCreateSession 返回 %llu", (unsigned long long)session);
@@ -792,12 +800,22 @@ JNIEXPORT jobject JNICALL Java_com_qingyu_inputmethod_core_RimeSession_nativeSta
           status.schema_id != nullptr ? status.schema_id : "?",
           status.is_composing != 0, status.is_ascii_mode != 0,
           status.is_disabled != 0);
+  char mode[4] = {};
+  RimeGetProperty(g_session, "qingyu_script_mode", mode, sizeof(mode));
+  status.is_traditional = mode[0] == '1';
+  status.is_simplified = mode[0] != '1' && mode[0] != '2';
   jobject result = NewStatus(env, status);
   RimeFreeStatus(&status);
   return result;
 }
 
 /** 设置引擎选项（如 traditionalization / ascii_mode）。 */
+JNIEXPORT jboolean JNICALL
+Java_com_qingyu_inputmethod_core_RimeSession_nativeSetScriptMode(JNIEnv*, jobject, jint mode) {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  return SetNativeScriptMode(g_session, mode) ? JNI_TRUE : JNI_FALSE;
+}
+
 JNIEXPORT void JNICALL
 Java_com_qingyu_inputmethod_core_RimeSession_nativeSetOption(JNIEnv* env,
                                                              jobject /*thiz*/,
@@ -881,10 +899,10 @@ Java_com_qingyu_inputmethod_core_RimeSession_nativeKeycodeOf(JNIEnv* env,
 /** One bounded probe per lock acquisition so typing can interleave with cold lookup. */
 JNIEXPORT jobjectArray JNICALL
 Java_com_qingyu_inputmethod_core_RimeSession_nativeAssociationProbe(
-    JNIEnv* env, jobject /*thiz*/, jstring input, jstring prefix, jint max_pages) {
+    JNIEnv* env, jobject /*thiz*/, jstring input, jstring prefix, jint max_pages, jint mode) {
   std::lock_guard<std::mutex> lock(g_mutex);
   const auto words = g_session == 0 ? vector<string>{} :
-      QueryAssociation(ToStd(env, input), ToStd(env, prefix), max_pages);
+      QueryAssociation(ToStd(env, input), ToStd(env, prefix), max_pages, mode);
   if (!EnsureJavaIds(env)) return nullptr;
   jobjectArray result = env->NewObjectArray(words.size(), g_java_ids.string_cls,
                                             nullptr);

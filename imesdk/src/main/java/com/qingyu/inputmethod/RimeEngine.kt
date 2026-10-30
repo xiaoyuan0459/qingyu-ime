@@ -136,8 +136,8 @@ object RimeEngine {
      * 与原串相同；但每个键仍会对 100 条候选各调一次，白白产生 100 个临时字符串。
      * 先扫一遍字符（内联、无分配），没有字母就原样返回。
      */
-    private fun String.applyCase(transform: (String) -> String): String =
-        if (any { it in 'a'..'z' || it in 'A'..'Z' }) transform(this) else this
+    private inline fun String.applyCase(transform: (String) -> String): String =
+        if (InputModeSwitcher.isEnglish && any { it in 'a'..'z' || it in 'A'..'Z' }) transform(this) else this
 
     /** 九键的组合串是每键首字母的大写键码，归因前得先用同一张键位表把读音写成键码。 */
     internal fun spellingEncoder(schemaId: String): FuzzySpellingGate.Encoder =
@@ -325,17 +325,18 @@ object RimeEngine {
         }
     }
 
+    fun refreshScriptCandidates() { updateCandidatesOrCommitText() }
+
     private fun updateCandidatesOrCommitText(): String? {
         val rimeCommit = RimeSession.commit()
         if (rimeCommit != null) {
             keyRecordStack.clear()
             preCommitText = rimeCommit.commitText
-            preCommitText = if (charCase == KeyEvent.META_SHIFT_ON) {
-                preCommitText.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-            } else if (charCase == KeyEvent.META_CAPS_LOCK_ON) {
-                preCommitText.uppercase()
-            } else {
-                preCommitText.lowercase()
+            preCommitText = preCommitText.applyCase { text ->
+                if (charCase == KeyEvent.META_SHIFT_ON) {
+                    text.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                } else if (charCase == KeyEvent.META_CAPS_LOCK_ON) text.uppercase()
+                else text.lowercase()
             }
             showComposition = ""
             showCandidates = emptyList()

@@ -74,8 +74,12 @@
     <string name="changeKeyboard">切换键盘</string>
     <string name="chinese_input_setting">中文输入</string>
     <string name="search_english_cell">英文单词补全</string>
-    <string name="setting_jian_fan">繁体输入</string>
-    <string name="setting_jian_fan_summary">关闭后候选只显示简体</string>
+    <string name="setting_jian_fan">字形模式</string>
+    <string name="script_simplified">简体</string>
+    <string name="script_traditional">通用繁体</string>
+    <string name="script_original">原字</string>
+    <string name="script_mode_changed">字形：%1$s</string>
+    <string name="script_mode_unavailable">当前词库未提供原生繁体词条，将保留原字</string>
     <string name="spelling_correction">拼写纠错</string>
     <string name="chinese_association">中文联想</string>
     <string name="phrase_candidates">常用语候选</string>

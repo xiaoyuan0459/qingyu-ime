@@ -1,0 +1,10 @@
+{
+  "formatVersion": 1,
+  "url": "https://www.mdbg.net/chinese/dictionary?page=cedict",
+  "snapshot": "2026-10-28",
+  "sha256": "714c3e7ea6086956f163eb9387d627859e5c00c0e51725197b7a0c670cc2641a",
+  "spdx": "CC-BY-SA-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "licenseSha256": "cde7883b9050a1104f4ac19a1572aafd6e5d7323b68351aaf51fbf4beba54966",
+  "use": "native word forms and per-mode prefix index; no text conversion"
+}

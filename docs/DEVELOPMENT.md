@@ -65,13 +65,43 @@ Linux / macOS 用 `./gradlew` 执行相同任务。输出为 `app/build/outputs/
 
 debug 使用 Android 标准开发签名，不需要 `keystore`。旧本地 debug 曾使用 release 签名，因此新 debug 证书可能无法直接覆盖旧安装；请使用独立测试环境，并先保留已有用户数据。
 
-release 支持以下环境变量：`RELEASE_STORE_FILE`、`RELEASE_STORE_PASSWORD`、`RELEASE_KEY_ALIAS`、`RELEASE_KEY_PASSWORD`；也可使用本地 `keystore/keystore.properties`：
+release 支持以下环境变量：`RELEASE_STORE_FILE`、`RELEASE_STORE_TYPE`、`RELEASE_STORE_PASSWORD`、`RELEASE_KEY_ALIAS`、`RELEASE_KEY_PASSWORD`；本机优先读取 `keystore/release.properties`，不存在时读取旧的 `keystore/keystore.properties`。扩展名不能证明格式，类型应以 keytool 实测为准：
 
 ```properties
 storeFile=keystore/release.jks
+storeType=PKCS12
 storePassword=<local password>
 keyAlias=<local alias>
 keyPassword=<local password>
 ```
 
-这些文件和口令不提交。正式发行先完成[发布验收](https://github.com/xiaoyuan0459/qingyu-ime/wiki/Release)，再执行 `:app:assembleOfflineRelease` 并核对签名与产物；debug APK 不作为正式发行。
+这些文件和口令不提交，口令只在本机填写。默认签名配置不完整时 release 校验明确失败；仅 CI 显式传入 -PqingyuUnsignedRelease=true 才允许产出待本机签名的优化包。正式发行先完成[发布验收](https://github.com/xiaoyuan0459/qingyu-ime/wiki/Release)，再执行 `:app:assembleOfflineRelease` 并核对签名与产物；debug APK 不作为正式发行。
+
+Release 只由最终 `app` 统一执行 R8；不要先对 `imesdk` 独立收缩，否则应用壳调用的 SDK 入口可能被提前删除。
+Room 2.6.1 的生成实现通过反射调用无参构造器，须保留该构造器；对应规则集中在 `app/proguard.cfg`。
+此约束来自 2026-10-29 真机 Release 的 `WorkDatabase_Impl.<init>()` 冷启动崩溃，不以 debug 构建成功代替验收。
+
+原生字形的生产实现及验证边界见 [ADR 0010](adr/0010-原生简繁词形与原字模式.md)。
+
+
+### CI 构建后本机签名
+
+Actions 同时验证 debug 和优化 Release，artifact 名为 android-build-<commit SHA>，保留 unsigned Release、debug 包与报告。
+标签工作流仅创建草稿预发布；私钥和口令留在本机。下载对应成功 run 的 unsigned APK 后：
+
+```powershell
+java tools/SignRelease.java D:/data/Android/Sdk/build-tools/37.0.0 <unsigned.apk> <signed.apk> keystore/release.properties
+```
+
+工具解锁私钥、调用 apksigner、比对配置证书，并逐项比较签名前后 APK 解压载荷哈希，只允许签名条目变化。
+输出必须是新路径，生成独立 .sha256。核对包名、版本、ABI，在真机安装并启动；发布 signed APK、SHA256SUMS.txt 和构建来源说明。
+保留 tag、commit、Actions run URL、输入和输出 SHA-256；下载 Release 资产重新验签、核对哈希后才记录发布完成。
+这证明使用 CI 载荷并在本机签名，不声称签名字节完全可复现或私钥曾存入 CI。
+
+真机统一回归需先构建并安装 SDK 测试 APK，再运行：
+
+```powershell
+./tools/test-native-device.ps1 -Adb D:/data/Android/Sdk/platform-tools/adb.exe
+```
+
+仅操作私有测试编辑器与输入法，结束恢复原输入法；设备须已由用户正常解锁，不能绕过安全锁屏。

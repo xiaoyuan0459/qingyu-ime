@@ -11,7 +11,7 @@
 · LevelDB —— BSD-3-Clause。librime 的用户词库存储后端。
 · marisa-trie —— BSD-2-Clause / LGPL-2.1 双许可，本应用使用 BSD-2 分支。
 · yaml-cpp —— MIT。
-· OpenCC —— Apache-2.0。简繁与 emoji 词条转换。
+· OpenCC —— Apache-2.0。仅 emoji 词条转换，不参与简繁改写。
 · RapidJSON —— MIT。
 · Boost 1.87.0 —— Boost Software License 1.0。仅使用头文件。
 · ncnn（Android 预编译静态库）—— BSD-3-Clause。手写识别的推理框架。
@@ -46,12 +46,13 @@
 三、随包数据与词库
 
 · 汉字拼音表 —— 取自 pinyin-data v0.15.0（MIT），其许可声明已内嵌在 assets/pinyin_table.txt 的文件头。上游 github.com/mozillazg/pinyin-data
-· 默认词库包（雾凇拼音 rime-ice）—— GPL-3.0-only，固定 revision 9e66b07。因 GPL 的对应源码要求，词库包内随附 SOURCE.md（指回词典源文件与编译脚本）、LICENSE 全文、manifest.json（含 SPDX 标识、revision、下载入口与逐文件 SHA-256）。上游 github.com/iDvel/rime-ice
+· 可选词库包（雾凇拼音 rime-ice）—— GPL-3.0-only，固定 revision 9e66b07；也是白霜的上游来源。独立构建分发，保留来源与许可材料。上游 github.com/iDvel/rime-ice
 · 五笔画码表（rime-stroke）—— LGPL-3.0-or-later，固定 revision 1e8fff9b。主码表源自台湾 CNS11643 国家全字库，附码表源自北大中文论坛；归属声明以 AUTHORS.rime-stroke 随包分发，不得移除。上游 github.com/rime/rime-stroke
 · 词库基础数据（rime-essay）—— LGPL-3.0，许可证文件随包。上游 github.com/iDvel/rime-essay
-· 简繁 / emoji 转换数据 —— 来自 OpenCC（Apache-2.0）。
+· emoji 转换数据 —— 来自 OpenCC（Apache-2.0）；简繁输出直接选择原生词形。
+· CC-CEDICT 原生繁体词条 —— CC-BY-SA-4.0，快照 2026-10-28；词频连接与索引派生物 GPL-3.0-only（CC 官方单向兼容）。原始头、完整许可、来源哈希及修改说明随 assets/licenses/native/ 与词库包分发。
 · Vosk 中文小模型 vosk-model-small-cn-0.22、英文小模型 vosk-model-small-en-us-0.15 —— Apache-2.0。不随安装包分发；用户首次开启“离线语音”时从 alphacephei.com/vosk/models 下载，可在设置中删除。
-· 可选词库包（白霜 rime-frost）—— GPL-3.0-or-later，固定 revision 96278d8。作为独立可导入包分发，不随安装包内置。上游 github.com/gaboolic/rime-frost
+· 默认词库包（白霜 rime-frost）—— GPL-3.0-or-later，固定 revision 96278d8，随 APK 内置，联想索引派生自同一词表。包内含 SOURCE.md、LICENSE 全文与 manifest.json（来源、revision、逐文件 SHA-256）。上游 github.com/gaboolic/rime-frost
 
 
 四、触感实现

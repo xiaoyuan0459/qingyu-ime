@@ -1,4 +1,5 @@
 #include "association.h"
+#include "native_script.h"
 
 #include <algorithm>
 #include <unordered_set>
@@ -17,7 +18,7 @@ void CloseAssociationSession() {
 
 std::vector<std::string> QueryAssociation(const std::string& input,
                                           const std::string& prefix,
-                                          int max_pages) {
+                                          int max_pages, int mode) {
   std::vector<std::string> result;
   // 允许一个音节分隔符：联想探测必须把前缀音节钉死，否则纠错表会把
   // 「yuanl」重新切分成「yua'nl」，联想词被无关候选挤掉。
@@ -38,8 +39,11 @@ std::vector<std::string> QueryAssociation(const std::string& input,
     }
     RimeSetOption(session, "disable_user_dict", True);
   }
+  SetNativeScriptMode(session, mode);
   RimeClearComposition(session);
-  for (char letter : input) RimeProcessKey(session, letter, 0);
+  // 已校验的完整拼音无需重放逐键事件：每个中间前缀都会重做一次翻译，
+  // 并在整个过程中占着与前台打字共用的 JNI 锁。SetInput 只触发一次组合更新。
+  if (!RimeSetInput(session, input.c_str())) return result;
   std::unordered_set<std::string> seen;
   for (int page = 0; page < max_pages; ++page) {
     RimeContext context = {};

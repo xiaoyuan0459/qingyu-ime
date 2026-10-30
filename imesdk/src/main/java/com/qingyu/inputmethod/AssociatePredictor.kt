@@ -27,7 +27,7 @@ object AssociatePredictor {
 
     private const val HABITS_STORE = "associate_habits"
     private const val SCAN_CACHE = "associate_scan_cache"
-    private const val SCAN_CACHE_VERSION = "v1"
+    private const val SCAN_CACHE_VERSION = "v3-native"
     private const val MAX_PAGES = 2
     /** 返回给候选栏的联想词上限：展开面板可以完整浏览。 */
     private const val MAX_WORDS = 100
@@ -62,10 +62,18 @@ object AssociatePredictor {
     private var checkedPersistentPack = false
 
     /** 词库包身份：词库内容变了，旧联想结果就不能再用。 */
-    private val packKey by lazy {
-        val manifest = RimePackManager.activeManifest(Launcher.instance.context)
-        if (manifest == null) "unknown" else "${manifest.id}:${manifest.version}"
-    }
+    private var packGeneration = -1L
+    private var cachedPackKey = "unknown"
+    private val packKey: String
+        @Synchronized get() {
+            if (packGeneration != RimeSession.generation) {
+                val manifest = RimePackManager.activeManifest(Launcher.instance.context)
+                cachedPackKey = if (manifest == null) "unknown" else "${manifest.id}:${manifest.version}"
+                packGeneration = RimeSession.generation
+                checkedPersistentPack = false
+            }
+            return cachedPackKey
+        }
 
     /**
      * 取 [prefix]（光标前的文本）的联想词，返回**完整词**（含前缀那个字）。
@@ -85,12 +93,33 @@ object AssociatePredictor {
         val key = prefix.last()
         if (!isHan(key)) return emptyList()
         if (!RimeSession.isRunning) return emptyList()
-        val code = plainPinyin(key)
-        if (code.isEmpty()) return emptyList()
         val generation = RimeSession.generation
-        val cached = cachedWords(generation, key)
+        val mode = RimeSession.scriptMode
+        val cached = cachedWords(generation, key, mode)
         if (cached != null) return decorate(cached, key)
 
+        // 新内置包按文字直接检索，不占用 librime 的前台输入锁，也不依赖末字的第一读音。
+        val root = RimePackManager.sharedDataDir(Launcher.instance.context)
+        val indexed = root?.let {
+            when (mode) {
+                1 -> PackAssociationIndex.words(it, key.code, "associate-traditional.bin")
+                2 -> {
+                    val raw = PackAssociationIndex.words(it, key.code)
+                    val traditional = PackAssociationIndex.words(it, key.code, "associate-traditional.bin")
+                    if (raw == null) traditional else merge(listOf(raw, traditional.orEmpty()))
+                }
+                else -> PackAssociationIndex.words(it, key.code)
+            }
+        }
+        if (indexed != null) {
+            if (generation != RimeSession.generation || !RimeSession.isRunning) return emptyList()
+            cache.put(cacheKey(generation, key, mode), indexed)
+            storePersistent(key, indexed, mode)
+            return decorate(indexed, key)
+        }
+
+        val code = plainPinyin(key)
+        if (code.isEmpty()) return emptyList()
         val perProbe = ArrayList<List<String>>(probeOrder.size)
         var batch = 0
         for ((index, initial) in probeOrder.withIndex()) {
@@ -105,8 +134,8 @@ object AssociatePredictor {
             }
         }
         val result = merge(perProbe)
-        cache.put(cacheKey(generation, key), result)
-        storePersistent(key, result)
+        cache.put(cacheKey(generation, key, mode), result)
+        storePersistent(key, result, mode)
         return decorate(result, key)
     }
 
@@ -114,7 +143,7 @@ object AssociatePredictor {
     fun rememberSelection(key: Char, word: String) {
         if (!isHan(key) || word.isEmpty()) return
         val next = (listOf(word) + habitOf(key)).distinct().take(MAX_HABITS_PER_KEY)
-        habits.edit().putString(key.toString(), next.joinToString("\n")).apply()
+        habits.edit().putString("${RimeSession.scriptMode}:$key", next.joinToString("\n")).apply()
     }
 
     // ------------------------------------------------------------------ 合并与缓存
@@ -122,9 +151,7 @@ object AssociatePredictor {
     private fun decorate(found: List<String>, key: Char): List<String> {
         val learned = habitOf(key)
         val merged = if (learned.isEmpty()) found else (learned + found).distinct()
-        // 联想走独立会话，不经主会话的 simplifier(t2s)；在这里按同一份 OpenCC 数据转换。
-        // 只转换、不丢弃：旧实现逐字反查后整条挡掉，会误杀「乾隆」这类简体保留古字的词。
-        return merged.map(SimplifiedText::forOutput).distinct().take(MAX_WORDS)
+        return merged.distinct().take(MAX_WORDS)
     }
 
     /** 按「各次探测内的名次」轮转合并，让每个声母的头名先出场。 */
@@ -138,16 +165,16 @@ object AssociatePredictor {
         return merged.toList()
     }
 
-    private fun cachedWords(generation: Long, key: Char): List<String>? {
-        cache.get(cacheKey(generation, key))?.let { return it }
-        val persisted = readPersistent(key) ?: return null
-        cache.put(cacheKey(generation, key), persisted)
+    private fun cachedWords(generation: Long, key: Char, mode: Int): List<String>? {
+        cache.get(cacheKey(generation, key, mode))?.let { return it }
+        val persisted = readPersistent(key, mode) ?: return null
+        cache.put(cacheKey(generation, key, mode), persisted)
         return persisted
     }
 
-    private fun cacheKey(generation: Long, key: Char) = "$generation:$key"
+    private fun cacheKey(generation: Long, key: Char, mode: Int) = "$generation:$mode:$key"
 
-    private fun persistentKey(key: Char) = "$SCAN_CACHE_VERSION|$packKey|$key"
+    private fun persistentKey(key: Char, mode: Int) = "$SCAN_CACHE_VERSION|$packKey|$mode|$key"
 
     private fun ensurePersistentPack() {
         if (checkedPersistentPack) return
@@ -160,16 +187,16 @@ object AssociatePredictor {
         }
     }
 
-    private fun readPersistent(key: Char): List<String>? {
+    private fun readPersistent(key: Char, mode: Int): List<String>? {
         ensurePersistentPack()
-        val value = persistent.getString(persistentKey(key), null) ?: return null
+        val value = persistent.getString(persistentKey(key, mode), null) ?: return null
         return value.split('\n').filter(String::isNotEmpty).ifEmpty { null }
     }
 
-    private fun storePersistent(key: Char, words: List<String>) {
+    private fun storePersistent(key: Char, words: List<String>, mode: Int) {
         if (words.isEmpty()) return
         ensurePersistentPack()
-        val name = persistentKey(key)
+        val name = persistentKey(key, mode)
         val value = words.take(MAX_PERSISTED_WORDS).joinToString("\n")
         val order = persistent.getString(ORDER_KEY, null)
             ?.split('|')?.filter(String::isNotEmpty)?.toMutableList() ?: mutableListOf()
@@ -188,7 +215,7 @@ object AssociatePredictor {
     // ------------------------------------------------------------------ 拼音
 
     private fun habitOf(key: Char): List<String> =
-        habits.getString(key.toString(), null)?.split('\n')?.filter(String::isNotEmpty) ?: emptyList()
+        habits.getString("${RimeSession.scriptMode}:$key", null)?.split('\n')?.filter(String::isNotEmpty) ?: emptyList()
 
     /** 「原」→ `yuan`；「女」→ `nv`（rime 用 v 表示 ü）。查不到返回空串。 */
     private fun plainPinyin(char: Char): String {

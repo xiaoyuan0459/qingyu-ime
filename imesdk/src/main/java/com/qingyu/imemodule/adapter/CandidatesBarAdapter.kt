@@ -38,7 +38,7 @@ class CandidatesBarAdapter(context: Context?) :
 
     override fun onBindViewHolder(holder: SymbolHolder, position: Int) {
         if(DecodingInfo.isCandidatesEmpty) return
-        val text = DecodingInfo.candidates[position].text
+        val text = DecodingInfo.candidates[position].displayText
         holder.textView.text = text
         // TalkBack 逐条读候选时会连序号一起念，否则一排候选听不出「念到第几个、还有几个」。
         // 组装这个串要查资源并格式化，文本与序号都没变时不重复做。

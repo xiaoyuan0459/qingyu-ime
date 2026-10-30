@@ -60,11 +60,23 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
 
         // 二级页的开关行按参考基线走单行：开关的语义已由标题本身表达，
         // 再挂一行 summary 会把行高从 55dp 撑到 78dp，整页节奏就散了。
-        init { category(R.string.chinese_input_setting) }
+        init {
+            category(R.string.chinese_input_setting)
+            if (!sharedPreferences.contains("script_output_mode") && sharedPreferences.contains("chinese_jian_fan_enable")) {
+                val previous = sharedPreferences.getBoolean("chinese_jian_fan_enable", false)
+                sharedPreferences.edit {
+                    putString("script_output_mode", if (previous) "Traditional" else "Simplified")
+                    remove("chinese_jian_fan_enable")
+                }
+            }
+        }
 
-        val chineseFanTi = switch(
-            R.string.setting_jian_fan, "chinese_jian_fan_enable", false,
-            R.string.setting_jian_fan_summary,
+        val scriptMode = list(
+            R.string.setting_jian_fan, "script_output_mode",
+            com.qingyu.imemodule.prefs.behavior.ScriptMode.Simplified,
+            com.qingyu.imemodule.prefs.behavior.ScriptMode,
+            com.qingyu.imemodule.prefs.behavior.ScriptMode.entries,
+            com.qingyu.imemodule.prefs.behavior.ScriptMode.entries.map { it.label },
         )
 
         val spellingCorrection = switch(R.string.spelling_correction, "spelling_correction_enable", true)
@@ -381,6 +393,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             providers.forEach {
                 it.managedPreferences[key]?.fireChange()
             }
+            if (key == "script_output_mode") com.qingyu.inputmethod.ScriptModeController.applyPreference()
         }
 
     @RequiresApi(Build.VERSION_CODES.N)

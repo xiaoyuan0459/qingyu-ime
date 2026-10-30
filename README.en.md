@@ -15,7 +15,7 @@ T9 · Full Pinyin · Shuangpin · L17 · Five-stroke · Handwriting · Offline v
 
 </div>
 
-> **Status: Pre-Alpha (`0.1.1-dev`).** The input pipeline runs end-to-end on emulators. arm64 device and OEM ROM coverage is still being filled in. There is no release recommended for daily use yet; to try it now, grab the [v0.1.1-dev preview build](https://github.com/xiaoyuan0459/qingyu-ime/releases) (debug-signed). See the [roadmap](ROADMAP.md) and [technical debt list](docs/TECHNICAL_DEBT.md).
+> **Status: Pre-Alpha (`0.2.0-dev`).** Native simplified, general traditional and original modes are integrated and tested on an Android 13 arm64 device. Other OEM coverage remains open. Get the [release-signed arm64 preview](https://github.com/xiaoyuan0459/qingyu-ime/releases/tag/v0.2.0-dev); see the [validation scope](docs/validation/0.2.0-dev.md) (Chinese) and [roadmap](ROADMAP.md).
 
 ---
 
@@ -23,7 +23,7 @@ T9 · Full Pinyin · Shuangpin · L17 · Five-stroke · Handwriting · Offline v
 
 - **Input never leaves the device.** No cloud IME, account, sync, ads, or analytics SDK. Candidates, dictionaries and handwriting inference all run on-device; the core input path needs no network.
 - **Handwriting that covers rare characters.** A self-trained closed-set classifier with **27,664 character classes**, 8.4 MB int8 weights, running on ncnn. On an unseen-writing-style test set: top-1 88.8%, top-5 97.1%.
-- **Swappable dictionaries with rollback.** Ships a pinned rime-ice build. Rime dictionary packs can be imported with manifest, path, size and SHA-256 validation, atomic activation, and fallback to the previous version on failure.
+- **Swappable dictionaries with rollback.** Ships pinned rime-frost with upstream frequencies. Rime dictionary packs can be imported with manifest, path, size and SHA-256 validation, atomic activation, and fallback to the previous version on failure.
 - **Full scheme coverage.** T9, full pinyin, Flypy / Natural / ABC / MS / Sogou / Ziguang shuangpin, L17, five-stroke, English, and mixed Chinese-English input.
 - **Five permissions.** The core path uses only `VIBRATE`, `RECORD_AUDIO` and `POST_NOTIFICATIONS`; `INTERNET` / `ACCESS_NETWORK_STATE` exist solely for the optional offline-voice download and handwriting sample upload that the user turns on.
 - **Auditable source.** GPL-3.0-only, with the native engine built from source. Every dependency is pinned by commit and hash; no prebuilt binaries are trusted.
@@ -33,8 +33,8 @@ T9 · Full Pinyin · Shuangpin · L17 · Five-stroke · Handwriting · Offline v
 
 | Area | What is implemented |
 | --- | --- |
-| Chinese input | T9, full pinyin, six shuangpin layouts, L17, five-stroke, simplified/traditional toggle |
-| Dictionaries | Pinned rime-ice default; local Rime pack import with validation, atomic install and rollback; optional rime-frost pack distributed separately |
+| Chinese input | T9, full pinyin, six shuangpin layouts, L17, five-stroke, simplified / general traditional / original modes |
+| Dictionaries | Pinned rime-frost default with upstream frequencies; local Rime pack import with validation, atomic install and rollback; rime-ice available as a separate build |
 | English & symbols | Full English keyboard, number row, symbols, Emoji, kaomoji, stylized text, paired symbols |
 | Handwriting | Self-trained single-character model, 27,664 classes, int8 8.4 MB, fully on-device; training data is synthetic from OFL fonts, no CASIA-derived data |
 | Voice | Long-press space; local Vosk small model first, falls back to Android 12+ on-device recognition |
@@ -46,17 +46,20 @@ T9 · Full Pinyin · Shuangpin · L17 · Five-stroke · Handwriting · Offline v
 
 | Layer | Choice | Notes |
 | --- | --- | --- |
-| Language | Kotlin 2.2.20 | 307 files, ~38,400 lines; View system with XML / Splitties DSL, no Compose |
+| Language | Kotlin 2.2.20 | View system with XML / Splitties DSL, no Compose |
 | Input engine | librime 1.11.2 (built from source) | Pinned commit and recursive submodules, with local patches; exposed over JNI as `RimeSession` / `RimeEngine` |
 | Handwriting | ncnn 20260526 + self-trained model | 64×64 single-channel input, 27,664-class output, int8 quantized; ONNX → ncnn via `pnnx` |
 | Speech | Vosk Android 0.3.47 | Chinese / English small models downloaded on first opt-in; recognition stays on-device |
-| Dictionaries | rime-ice, rime-stroke, pinyin-data, OpenCC | Packs compiled by `tools/build-rime-pack.py` from pinned upstream revisions |
+| Dictionaries | rime-frost, CC-CEDICT, rime-stroke, pinyin-data; OpenCC for Emoji only | Packs compiled by `tools/build-rime-pack.py` from pinned upstream revisions |
+
 | App framework | AndroidX, Material 1.12, Room 2.6.1, Coroutines 1.9, kotlinx.serialization | Persistence, async work and settings |
 | Build | AGP 9.4.0 / Gradle 9.6.0 / JDK 21 / NDK 30 / CMake 3.22.1 | Native deps prepared by `tools/bootstrap-native-deps.py` from a lock file |
 | Platform | minSdk 23, compile / target SDK 37 | Debug: arm64-v8a + x86_64. Release: arm64-v8a only |
 | CI | GitHub Actions | Builds both ABIs, runs lint, validates dependencies and licenses, exports dependency SHA-256 manifests |
 
-The native side is only ~1,440 lines of C/C++ (`imesdk/src/main/cpp`): JNI bridge, stroke preprocessing, and librime sessions. No upstream fork is maintained; the few behaviour changes (such as correction segmentation weight) are replayed as build-time patch scripts. Layering, input data flow and threading are described in [wiki: Architecture](https://github.com/xiaoyuan0459/qingyu-ime/wiki/Architecture) and [wiki: Input-Pipeline](https://github.com/xiaoyuan0459/qingyu-ime/wiki/Input-Pipeline).
+The native layer (`imesdk/src/main/cpp`) provides the JNI bridge, native lexical-form retrieval, stroke preprocessing, and librime sessions. No upstream fork is maintained; the few behaviour changes (such as correction segmentation weight) are replayed as build-time patch scripts. Layering, input data flow and threading are described in [wiki: Architecture](https://github.com/xiaoyuan0459/qingyu-ime/wiki/Architecture) and [wiki: Input-Pipeline](https://github.com/xiaoyuan0459/qingyu-ime/wiki/Input-Pipeline).
+
+Native lexical entries are committed without rewriting. Traditional fallback entries remain selectable and carry a display-only `·原` marker. OpenCC is used for Emoji only. See [ADR 0010](docs/adr/0010-原生简繁词形与原字模式.md) for source coverage and limitations.
 
 ## Performance and memory
 
@@ -71,16 +74,18 @@ Numbers below come from an **Android 15 (API 35) x86_64 emulator, debug build, s
 | Native Heap PSS | **21.9 MB** | 25.0 MB | librime + ncnn allocations |
 | First-screen PSS | ≈78 MB | — | Before the dictionary is mapped |
 
+The 2026-10-30 native-form build measured candidate-processing P95 of 6.97 / 5.38 / 11.22 ms on MEIZU 18 Pro / Android 13 (60 controlled queries per mode); with concurrent association: 5.44 / 5.27 / 5.03 ms. This is not touch-to-display latency. See the [validation report](docs/validation/0.2.0-dev.md). The table above is historical rime-ice data, not current memory measurements.
+
 Steady-state breakdown (debug): Native Heap ~22 MB, dictionary mmap ~16.6 MB, anonymous librime pages ~17 MB, Dalvik + ART ~20 MB. The footprint is dominated by **dictionary table mmap** and **librime's internal structures**, not the UI. The handwriting model is lazily loaded and released in `onTrimMemory`, so it is no longer resident. That figure is high for an IME; the next steps — mapping only the active schemas and reducing librime allocation churn — are not done yet.
 
 Package and assets:
 
 | Item | Size | Notes |
 | --- | --- | --- |
-| Debug APK | 74 MB | arm64-v8a + x86_64, x86_64 unstripped |
-| Pre-release `v0.1.1-dev` | 74 MB | The same debug build, attached to the GitHub Release with `SHA256SUMS.txt` |
-| Release APK | Not published | arm64-v8a only, substantially smaller |
-| Bundled dictionary `rime-base.zip` | 36 MB | ~83 MB unpacked, one rollback version retained |
+| Debug APK | See CI artifact | arm64-v8a + x86_64, development build |
+| Pre-release `v0.2.0-dev` | See release assets | arm64, release-signed, SHA256SUMS.txt and provenance attached |
+| Release APK | See release assets | arm64-v8a, optimized and release-signed preview |
+| Bundled dictionary `rime-base.zip` | ~37 MiB | ~88 MiB unpacked, one rollback retained |
 | Handwriting model (int8) | 8.4 MB | 27,664 classes, bundled |
 | Offline speech model | ~40–42 MB | Not bundled; downloaded on first opt-in |
 
@@ -88,7 +93,7 @@ Hot-path work targets operations that run on every keypress and produce no new r
 
 ## Install
 
-To skip building, download `app-offline-debug.apk` from [Releases](https://github.com/xiaoyuan0459/qingyu-ime/releases) — a pre-release, debug-signed build with `SHA256SUMS.txt` on the same page.
+Download `qingyu-ime-0.2.0-dev-arm64.apk` from [Releases](https://github.com/xiaoyuan0459/qingyu-ime/releases/tag/v0.2.0-dev), a release-signed preview with `SHA256SUMS.txt`. Its package ID differs from the older debug preview; retain the old installation and data. Cross-package migration has not been validated.
 
 Or install your own build:
 
@@ -159,8 +164,8 @@ Full fields, storage locations and retention: [privacy and data inventory](imesd
 Open source is not the same as finished. These are the explicitly unfinished parts; acceptance criteria live in the [technical debt list](docs/TECHNICAL_DEBT.md):
 
 - **Device coverage**: almost all conclusions come from an x86_64 emulator; the arm64 and OEM ROM matrix is still a release blocker.
-- **No release build**: only debug APKs are produced; signing, SBOM and the final license archive are not closed out.
-- **Association latency**: the first lookup for a new final character takes ~250–400 ms (26 prefix probes) and is instant once cached; polyphonic characters are looked up by their first reading.
+- **Preview scope**: a signed Release preview is provided; the full SBOM, broad device coverage and final license audit remain open.
+- **Legacy pack association latency**: imported packs without a prefix index still use 26 engine probes and the first pronunciation. The bundled rime-frost pack uses a read-only text-prefix index without competing for the typing engine lock.
 - **The 6th five-stroke key (wildcard) does nothing**: librime has no wildcard support, so its purpose is undecided.
 - **Single-stroke confusion**: the model ranks a plain horizontal stroke as `…` first and `一` second — a training-distribution issue.
 
@@ -171,7 +176,7 @@ Open source is not the same as finished. These are the explicitly unfinished par
 | `app/` | Application shell, manifest, packaging and signing |
 | `imesdk/` | IME service, keyboard UI, input pipeline, data and native engine |
 | `imesdk/src/main/cpp/` | JNI bridge, stroke preprocessing, librime session |
-| `imesdk/src/main/assets/` | Dictionary packs, handwriting model, OpenCC data and license material |
+| `imesdk/src/main/assets/` | Dictionary packs, handwriting model, Emoji data and license material |
 | `tools/` | Native dependency setup, dictionary packaging, model conversion and checks |
 | `server/handwriting-upload/` | Optional relay for handwriting samples; not part of the APK build |
 | `docs/` | Development guide, ADRs, technical debt, brand assets |
@@ -196,13 +201,13 @@ Licensed under [GPL-3.0-only](LICENSE). Third-party code, dictionaries, models a
 | --- | --- | --- |
 | [YuyanIme](https://github.com/gurecn/YuyanIme) | Starting point for the Android IME framework, keyboard views and settings structure; heavily reworked here | BSD-3-Clause |
 | [librime](https://github.com/rime/librime) 1.11.2 | Rime input engine, built from source | BSD-3-Clause |
-| [OpenCC](https://github.com/BYVoid/OpenCC) | Simplified/traditional and Emoji conversion data | Apache-2.0 |
-| [rime-ice](https://github.com/iDvel/rime-ice) | Default bundled dictionary | GPL-3.0-only |
+| [OpenCC](https://github.com/BYVoid/OpenCC) | Emoji conversion only | Apache-2.0 |
+| [rime-ice](https://github.com/iDvel/rime-ice) | Optional separate dictionary and upstream of rime-frost | GPL-3.0-only |
 | [rime-stroke](https://github.com/rime/rime-stroke) | Five-stroke dictionary | LGPL-3.0-or-later |
 | [pinyin-data](https://github.com/mozillazg/pinyin-data) | Hanzi pinyin table | MIT |
 | [ncnn](https://github.com/Tencent/ncnn) | Handwriting inference runtime | BSD-3-Clause |
 | [Vosk](https://github.com/alphacep/vosk-api) | Local offline speech recognition | Apache-2.0 |
-| [rime-frost](https://github.com/gaboolic/rime-frost) | Optional dictionary pack, distributed separately | GPL-3.0-or-later |
+| [rime-frost](https://github.com/gaboolic/rime-frost) | Default bundled dictionary | GPL-3.0-or-later |
 
 **Input methods consulted** (behaviour and geometry only; no code, images, icons, skins, dictionaries, models or copy were reproduced):
 

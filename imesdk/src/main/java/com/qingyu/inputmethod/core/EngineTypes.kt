@@ -21,6 +21,8 @@ data class Candidate(
      * 非引擎候选（自定义短语、联想、手写）保持 -1。
      */
     var engineIndex: Int = -1
+    var isOriginal: Boolean = false
+    val displayText: String get() = if (isOriginal) "$text·原" else text
 }
 
 /** 输入方案。 */

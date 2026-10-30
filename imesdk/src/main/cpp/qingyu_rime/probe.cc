@@ -31,6 +31,7 @@
 #include <rime/dict/prism.h>
 #include <rime/dict/table.h>
 #include <rime_api.h>
+#include "native_script.h"
 
 namespace {
 
@@ -185,6 +186,7 @@ bool QueryCandidates(const char* shared_dir, const char* user_dir,
   traits.app_name = "qingyu_probe";
   rime->setup(&traits);
   rime->initialize(&traits);
+  RegisterNativeScriptTranslator();
   RimeSessionId session = rime->create_session();
   if (!session) {
     std::fprintf(stderr, "创建会话失败（检查 %s/build 是否齐全）\n", shared_dir);

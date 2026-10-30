@@ -3,7 +3,6 @@ package com.qingyu.imemodule.service
 import android.view.KeyEvent
 import androidx.lifecycle.MutableLiveData
 import com.qingyu.imemodule.application.CustomConstant
-import com.qingyu.inputmethod.SimplifiedText
 import com.qingyu.inputmethod.core.Candidate
 import com.qingyu.inputmethod.core.Kernel
 import com.qingyu.imemodule.manager.InputModeSwitcher
@@ -46,8 +45,7 @@ object DecodingInfo {
         get() = strokePattern != null
 
     /**
-     * 键盘空闲时预热联想会话：独立 session 的 schema/词典装载是首次联想里最贵的一段，
-     * 放在用户开始输入前完成，第一次上屏就不会再等它。
+     * 键盘空闲时预热当前包的联想路径；有索引的包不启动后台引擎会话。
      */
     fun warmAssociation() {
         if (!RimeSession.isRunning) return
@@ -57,21 +55,23 @@ object DecodingInfo {
         associationScope.launch {
             runCatching {
                 runInterruptible(Dispatchers.IO) {
-                    RimeSession.associationProbe("de'd", "的", 1)
+                    AssociatePredictor.words("的")
                 }
             }
         }
     }
 
-    /**
-     * 联想/通配用的 OpenCC t2s 表在后台解析，避免第一次查询同步读 40KB 资源。
-     * 不设一次性标记：繁体开关可能来回切，`warm()` 自己会跳过已加载 / 繁体输出态。
-     */
-    fun warmSimplifiedText() {
-        associationScope.launch {
-            runCatching {
-                runInterruptible(Dispatchers.IO) { SimplifiedText.warm() }
-            }
+    private var associationPrefix = ""
+
+    fun onScriptModeChanged() {
+        cancelAssociation()
+        if (isAssociate) {
+            getAssociateWord(associationPrefix)
+        } else if (strokePattern == null && !isHandwriting && !isClipboardSuggestion && RimeSession.isComposing) {
+            com.qingyu.inputmethod.RimeEngine.refreshScriptCandidates()
+            activeCandidate = 0
+            activeCandidateBar = 0
+            candidatesLiveData.value = Kernel.candidates
         }
     }
 
@@ -163,17 +163,15 @@ object DecodingInfo {
         strokePatternJob = associationScope.launch {
             val result = withTimeoutOrNull(1500) {
                 runInterruptible(Dispatchers.IO) {
-                    // 通配走独立只读会话，拿不到主会话的 simplification 选项；在 IO 线程上
-                    // 用同一份 OpenCC 数据做 t2s，避免把 40KB 表的首次解析留给主线程。
+                    // 笔画候选直接保留词典字形，不改写用户选中的古字或异体。
                     RimeSession.strokeWildcard(pattern, STROKE_WILDCARD_MAX)
                         .asSequence()
-                        .map(SimplifiedText::forOutput)
                         .distinct()
                         .toList()
                 }
             } ?: return@launch
             if (request != strokePatternRequest || strokePattern != pattern) return@launch
-            val list = result.map { Candidate("", it) }
+            val list = result.map { Candidate("", it).apply { isOriginal = RimeSession.scriptMode == 1 } }
             isAssociate = false
             isHandwriting = false
             isClipboardSuggestion = false
@@ -432,6 +430,7 @@ object DecodingInfo {
      * 根据输入的字符查询候选词
      */
     fun getAssociateWord(words: String) {
+        associationPrefix = words
         if (strokePattern != null) return
         cancelAssociation()
         isClipboardSuggestion = false

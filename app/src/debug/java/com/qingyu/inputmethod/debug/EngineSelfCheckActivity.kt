@@ -178,13 +178,13 @@ class EngineSelfCheckActivity : Activity() {
 
     private fun checkOption() {
         section("⑤ 选项：简繁切换")
-        RimeSession.setOption("traditionalization", true)
+        RimeSession.setScriptMode(1)
         type("hanzi")
-        log("traditionalization=true  ├ 候选 = ${candidates().take(5).joinToString { it.text }}")
+        log("native traditional ├ 候选 = ${candidates().take(5).joinToString { it.text }}")
         RimeSession.clearInput()
-        RimeSession.setOption("traditionalization", false)
+        RimeSession.setScriptMode(0)
         type("hanzi")
-        log("traditionalization=false ├ 候选 = ${candidates().take(5).joinToString { it.text }}")
+        log("native simplified ├ 候选 = ${candidates().take(5).joinToString { it.text }}")
         RimeSession.clearInput()
     }
 

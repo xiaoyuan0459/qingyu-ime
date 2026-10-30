@@ -20,9 +20,7 @@ class CandidateStrokeLookupTest {
         assertTrue(RimeSession.isRunning)
         try {
             assertTrue(Kernel.initImeSchema("pinyin"))
-            RimeSession.setOption("traditionalization", true)
-            // RimeStatus reports the upstream "traditional" option, independently of this schema's converter.
-            RimeSession.setOption("traditional", true)
+            RimeSession.setScriptMode(1)
             RimeSession.clearInput()
             "nihao".forEach { RimeSession.processKey(it.code, 0) }
             val before = RimeSession.currentContext()!!

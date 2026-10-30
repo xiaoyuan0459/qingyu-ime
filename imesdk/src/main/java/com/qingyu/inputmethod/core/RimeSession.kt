@@ -118,7 +118,7 @@ object RimeSession {
     // ---------------------------------------------------------------- 状态查询
 
     val isComposing: Boolean
-        get() = status?.isComposing == true
+        get() = (inputContext?.composition?.length ?: 0) > 0
 
     val composition: Composition?
         get() = inputContext?.composition
@@ -212,8 +212,21 @@ object RimeSession {
     /** 当前方案 id；由 [selectSchema] / [start] 维护，不再每键查询 native。 */
     fun currentSchemaId(): String = schemaId
 
-    /** 设置引擎选项（如 `traditionalization`、`emoji`）。 */
+    /** 设置独立引擎选项（如 emoji）；字形统一走 setScriptMode。 */
     fun setOption(option: String, value: Boolean) = nativeSetOption(option, value)
+
+    @Volatile var scriptMode: Int = 0
+        private set
+
+    fun setScriptMode(mode: Int): Boolean {
+        require(mode in 0..2)
+        val changed = nativeSetScriptMode(mode)
+        if (changed) {
+            scriptMode = mode
+            refreshContext()
+        }
+        return changed
+    }
 
     /** 按键名取键码（如 `Page_Down`、`BackSpace`）。 */
     fun keycodeOf(name: String): Int = nativeKeycodeOf(name)
@@ -221,7 +234,7 @@ object RimeSession {
     /** 独立会话中的一次有界联想探测，不改变输入会话或其 Kotlin 缓存。 */
     @WorkerThread
     fun associationProbe(input: String, prefix: String, maxPages: Int): Array<String> =
-        if (running) nativeAssociationProbe(input, prefix, maxPages) else emptyArray()
+        if (running) nativeAssociationProbe(input, prefix, maxPages, scriptMode) else emptyArray()
 
     /**
      * 五笔画通配查询：`*` 代表任意一笔（最多两处），返回去重后的候选。
@@ -291,6 +304,7 @@ object RimeSession {
     private external fun nativeStatus(): Status?
 
     private external fun nativeSetOption(option: String, value: Boolean)
+    private external fun nativeSetScriptMode(mode: Int): Boolean
 
     private external fun nativeCurrentSchema(): String
 
@@ -300,7 +314,7 @@ object RimeSession {
 
     private external fun nativeKeycodeOf(name: String): Int
 
-    private external fun nativeAssociationProbe(input: String, prefix: String, maxPages: Int): Array<String>
+    private external fun nativeAssociationProbe(input: String, prefix: String, maxPages: Int, mode: Int): Array<String>
     private external fun nativeStrokeWildcard(pattern: String, maxCandidates: Int): Array<String>
     private external fun nativeStrokeCodes(path: String, characters: ByteArray): Array<String>?
 }

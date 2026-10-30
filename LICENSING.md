@@ -20,10 +20,11 @@
 | JNA 5.13.0 | LGPL-2.1-or-later 或 Apache-2.0 | Vosk Android 的传递依赖，Maven POM |
 | Vosk 中文 / 英文小模型 | Apache-2.0 | [Vosk models](https://alphacephei.com/vosk/models)；用户首次开启时下载，不随 APK 分发 |
 | pinyin-data v0.15.0 | MIT | `imesdk/src/main/assets/pinyin_table.txt` 中的声明 |
-| 默认雾凇词库 | GPL-3.0-only，固定 rime-ice revision | 内置 pack 的 SOURCE.md、LICENSE、manifest.json |
+| 可选雾凇词库 | GPL-3.0-only，固定 rime-ice revision | 独立 pack 的 SOURCE.md、LICENSE、manifest.json |
 | 自有频率层与叠加层 | GPL-3.0-only（随项目整体） | `tools/gen-dict-freq.py`、`imesdk/rime-src/cn_dicts/qingyu_overlay.dict.yaml`；只重算权重与增补词条，不改变分表的词条来源与许可 |
 | 笔画与词库基础数据 | rime-stroke / rime-essay 的 LGPL 声明 | pack 内许可证与 AUTHORS.rime-stroke |
-| 可选白霜词库 | GPL-3.0-or-later，独立导入包 | 可选 pack 的清单和来源，不随 APK 内置 |
+| CC-CEDICT 原生繁体资料 | 原始资料 CC-BY-SA-4.0；词频适配派生物 GPL-3.0-only | `imesdk/rime-src/native/source.json`、APK 的 `cc-cedict-LICENSE` / `cc-cedict-AUTHORS`，包内同源清单与归属；无简繁转换表 |
+| 默认白霜词库 | GPL-3.0-or-later，固定 rime-frost revision | 内置 pack 的 SOURCE.md、LICENSE、manifest.json；索引派生自相同词表 |
 | 手写识别模型 qingyu-hw-image-v1 | 自有语料训练，随项目整体 GPL-3.0-only 分发 | 见下方「手写识别」小节与 ADR 0008 |
 | 训练用 OFL 字体（8 个） | SIL Open Font License 1.1；字体不随包分发 | `tools/handwriting/fonts.json` 与 `fonts.lock.json` |
 | 本仓库手写推理层 | GPL-3.0-only（随项目整体） | `qingyu_hw_jni.cc` 与 `QingyuHwRecognizer.java` |

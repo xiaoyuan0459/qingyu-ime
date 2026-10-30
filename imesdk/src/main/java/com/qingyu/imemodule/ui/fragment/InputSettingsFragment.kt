@@ -10,7 +10,6 @@ import com.qingyu.inputmethod.core.Kernel
 
 class InputSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().input){
 
-    private val chineseFanTi = AppPrefs.getInstance().input.chineseFanTi
     private val emojiInput = AppPrefs.getInstance().input.emojiInput
     private val doublePYSchemaMode = AppPrefs.getInstance().input.doublePYSchemaMode
     private val fuzzyPrefs = listOf(
@@ -30,7 +29,6 @@ class InputSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().in
 
     override fun onStart() {
         super.onStart()
-        chineseFanTi.registerOnChangeListener(switchKeyListener)
         emojiInput.registerOnChangeListener(switchKeyListener)
         fuzzyPrefs.forEach { it.registerOnChangeListener(switchKeyListener) }
         spellingCorrection.registerOnChangeListener(switchKeyListener)
@@ -39,7 +37,6 @@ class InputSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().in
 
     override fun onStop() {
         super.onStop()
-        chineseFanTi.unregisterOnChangeListener(switchKeyListener)
         emojiInput.unregisterOnChangeListener(switchKeyListener)
         fuzzyPrefs.forEach { it.unregisterOnChangeListener(switchKeyListener) }
         spellingCorrection.unregisterOnChangeListener(switchKeyListener)
