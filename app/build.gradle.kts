@@ -4,6 +4,9 @@ plugins {
     id("com.android.application")
 }
 
+// CI builds an explicitly unsigned payload; the private release key stays on the maintainer's machine.
+val unsignedRelease = providers.gradleProperty("qingyuUnsignedRelease").orNull == "true"
+
 android {
     compileSdk = 37
     namespace = "com.qingyu.inputmethod"
@@ -42,7 +45,10 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePropertiesFile = rootProject.file("keystore/keystore.properties")
+            // 专用发行配置优先；旧本机密钥配置保留作备份，不与新证书口令混用。
+            val releasePropertiesFile = rootProject.file("keystore/release.properties")
+            val keystorePropertiesFile = if (releasePropertiesFile.exists()) releasePropertiesFile
+                else rootProject.file("keystore/keystore.properties")
             val keystoreProperties = Properties().apply {
                 if (keystorePropertiesFile.exists()) {
                     keystorePropertiesFile.inputStream().use { load(it) }
@@ -52,10 +58,19 @@ android {
             val keystorePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: keystoreProperties.getProperty("storePassword")
             val keyAliasName = System.getenv("RELEASE_KEY_ALIAS") ?: keystoreProperties.getProperty("keyAlias")
             val keyPasswordValue = System.getenv("RELEASE_KEY_PASSWORD") ?: keystoreProperties.getProperty("keyPassword")
+            // .jks 只是常见后缀，内容不一定是 JKS：这里按后缀选 storeType，也允许用
+            // RELEASE_STORE_TYPE / keystore.properties 的 storeType 显式覆盖。
+            val keystoreType = System.getenv("RELEASE_STORE_TYPE")
+                ?: keystoreProperties.getProperty("storeType")
+                ?: if (keystoreFilePath?.endsWith(".p12", ignoreCase = true) == true ||
+                    keystoreFilePath?.endsWith(".pfx", ignoreCase = true) == true
+                ) "PKCS12" else "JKS"
             if (keystoreFilePath != null) {
                 val keystoreFile = rootProject.file(keystoreFilePath)
-                if (keystoreFile.exists() && keystorePassword != null && keyAliasName != null && keyPasswordValue != null) {
+                if (keystoreFile.exists() && !keystorePassword.isNullOrBlank() &&
+                    !keyAliasName.isNullOrBlank() && !keyPasswordValue.isNullOrBlank()) {
                     storeFile = keystoreFile
+                    storeType = keystoreType
                     storePassword = keystorePassword
                     keyAlias = keyAliasName
                     keyPassword = keyPasswordValue
@@ -80,7 +95,7 @@ android {
             isShrinkResources = true
             applicationIdSuffix = ".release"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard.cfg")
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (unsignedRelease) null else signingConfigs.getByName("release")
         }
         getByName("debug") {
             applicationIdSuffix = ".debug"
@@ -97,6 +112,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
+}
+
+// 配置缺失时不能悄悄产出未签名的 release APK。
+tasks.matching { it.name == "validateSigningOfflineRelease" }.configureEach {
+    doFirst {
+        check(unsignedRelease || android.signingConfigs.getByName("release").storeFile != null) {
+            "发行签名未配置完整；请在本机 keystore/release.properties 或 RELEASE_* 环境变量中填写密钥路径、类型、别名和口令。"
+        }
+    }
 }
 
 dependencies {

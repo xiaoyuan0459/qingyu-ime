@@ -36,7 +36,11 @@ object RimePackManager {
     private fun isBuiltinCurrent(active: File?, builtin: RimePackManifest): Boolean {
         if (active == null) return false
         val installed = runCatching { RimePackVerifier.readManifest(active) }.getOrNull() ?: return false
-        return installed.id != builtin.id || installed == builtin
+        val legacyBuiltin = builtin.id == "rime-frost-qingyu" &&
+            installed.id == "rime-ice-qingyu" &&
+            installed.source.url == "https://github.com/iDvel/rime-ice/tree/9e66b0729083b37d217312294f6d516c8d7234be" &&
+            installed.source.revision == "9e66b0729083b37d217312294f6d516c8d7234be"
+        return (!legacyBuiltin && installed.id != builtin.id) || installed == builtin
     }
 
     fun install(context: Context, archive: InputStream): Result<RimePackStore.InstallResult> {
@@ -46,9 +50,13 @@ object RimePackManager {
         if (!wasRunning) return result
         if (result.isFailure) {
             if (!RimeSession.start()) Log.e(TAG, "pack 安装失败后旧引擎恢复失败")
+            else com.qingyu.inputmethod.core.Kernel.nativeUpdateImeOption()
             return result
         }
-        if (RimeSession.start()) return result
+        if (RimeSession.start()) {
+            com.qingyu.inputmethod.core.Kernel.nativeUpdateImeOption()
+            return result
+        }
 
         Log.e(TAG, "pack 安装后引擎重启失败")
         val restored = rollback(context)
@@ -79,7 +87,9 @@ object RimePackManager {
         RimeSession.stop()
         val restored = store(context).rollback() ?: return false
         Log.w(TAG, "已回滚 Rime pack: ${restored.name}")
-        return RimeSession.start()
+        return RimeSession.start().also { started ->
+            if (started) com.qingyu.inputmethod.core.Kernel.nativeUpdateImeOption()
+        }
     }
 
     private fun store(context: Context): RimePackStore {
@@ -96,12 +106,19 @@ object RimePackManager {
                         require(buildDir.deleteRecursively()) { "无法清理旧 build 目录" }
                     }
                     require(buildDir.mkdirs()) { "无法创建 build 目录" }
-                    RimeSession.buildWorkspace(
-                        sharedDataDir = packRoot,
-                        userDataDir = packRoot,
-                        stagingDir = buildDir,
-                        logDir = File(context.filesDir, "rime-log").apply { mkdirs() },
-                    )
+                    val temporary = File(context.cacheDir, "rime-deploy-${java.util.UUID.randomUUID()}")
+                    require(temporary.mkdir()) { "无法创建词库编译临时目录" }
+                    try {
+                        RimeSession.buildWorkspace(
+                            sharedDataDir = packRoot,
+                            userDataDir = temporary,
+                            stagingDir = buildDir,
+                            logDir = File(context.filesDir, "rime-log").apply { mkdirs() },
+                        )
+                    } finally {
+                        check(temporary.canonicalFile.parentFile == context.cacheDir.canonicalFile)
+                        temporary.deleteRecursively()
+                    }
                 }
                 initializedRoot = root
             }

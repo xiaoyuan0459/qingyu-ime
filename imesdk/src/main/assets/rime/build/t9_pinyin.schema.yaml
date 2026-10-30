@@ -6,8 +6,7 @@ emoji:
   option_name: emoji
 engine:
   filters:
-    - "simplifier@emoji"
-    - "simplifier@traditionalize"
+    - "qingyu_emoji@emoji"
     - uniquifier
   processors:
     - ascii_composer
@@ -25,7 +24,8 @@ engine:
   translators:
     - punct_translator
     - echo_translator
-    - script_translator
+    - "qingyu_native@translator"
+    - "qingyu_native@native_traditional"
 menu:
   page_size: 30
 punctuator:
@@ -64,12 +64,17 @@ speller:
     - derive/[pqrs]/P/
     - derive/[tuv]/T/
     - derive/[wxyz]/W/
-traditionalize:
-  opencc_config: s2t.json
-  option_name: traditionalization
 translator:
   always_show_comments: true
   dictionary: pinyin
   initial_quality: 1.2
   prism: t9_pinyin
   spelling_hints: 100
+
+native_traditional:
+  always_show_comments: true
+  dictionary: native_hant
+  initial_quality: 1.2
+  spelling_hints: 100
+  prism: t9_pinyin_native_hant
+  user_dict: native_hant

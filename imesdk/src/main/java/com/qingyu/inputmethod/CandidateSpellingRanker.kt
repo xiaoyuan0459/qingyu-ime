@@ -23,9 +23,28 @@ internal object CandidateSpellingRanker {
         typed: String,
         enabledFuzzyGroups: Set<String>,
         encode: FuzzySpellingGate.Encoder,
+    ): List<Candidate> = reorder(
+        page,
+        FuzzySpellingGate.parseTyped(typed),
+        enabledFuzzyGroups,
+        encode,
+        spellingCorrection = true,
+    )
+
+    /**
+     * 热路径重载：输入串已由 [RimeEngine.visibleCandidates] 解析过一次，不再重复 split。
+     * 拼写纠错关闭时纠错候选已被 [SpellingCorrectionGate] 挡掉，本层无事可做。
+     */
+    internal fun reorder(
+        page: List<Candidate>,
+        typed: FuzzySpellingGate.TypedInput,
+        enabledFuzzyGroups: Set<String>,
+        encode: FuzzySpellingGate.Encoder,
+        spellingCorrection: Boolean,
     ): List<Candidate> {
+        if (!spellingCorrection) return page
         if (page.size < 2 || SpellingCorrectionGate.variants.isEmpty()) return page
-        val compact = FuzzySpellingGate.parseTyped(typed).compact
+        val compact = typed.compact
         if (compact.isEmpty()) return page
 
         val readings = page.map { FuzzySpellingGate.readingSyllables(it.comment) }
@@ -137,12 +156,23 @@ internal object CandidateSpellingRanker {
      * `xhong` 的单字「中/zhong」通过纠错写法覆盖整串，仍应保留。只看注释与输入，
      * 不看候选正文，避免把单字全码候选误伤。
      */
-    fun coversInput(comment: String, compact: String, encode: FuzzySpellingGate.Encoder): Boolean {
+    fun coversInput(comment: String, compact: String, encode: FuzzySpellingGate.Encoder): Boolean =
+        coversInput(
+            comment, compact, encode,
+            HashMap<String, List<String>>(), HashMap<String, List<String>>(),
+        )
+
+    /** 一页里所有候选共用同一份读音缓存，避免为每条候选重新展开纠错写法。 */
+    internal fun coversInput(
+        comment: String,
+        compact: String,
+        encode: FuzzySpellingGate.Encoder,
+        normalCache: HashMap<String, List<String>>,
+        correctionCache: HashMap<String, List<String>>,
+    ): Boolean {
         if (compact.isEmpty()) return false
         val reading = FuzzySpellingGate.readingSyllables(comment)
         if (reading.isEmpty()) return false
-        val normalCache = HashMap<String, List<String>>()
-        val correctionCache = HashMap<String, List<String>>()
         var reachable = BooleanArray(compact.length + 1).also { it[0] = true }
         for (sound in reading) {
             val forms = LinkedHashSet(normalOptions(sound, encode, normalCache))

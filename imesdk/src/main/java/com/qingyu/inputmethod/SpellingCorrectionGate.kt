@@ -78,7 +78,7 @@ object SpellingCorrectionGate {
     ): Boolean {
         if (enabled) return true
         if (variants.isEmpty()) return true
-        val reading = syllables(comment)
+        val reading = FuzzySpellingGate.readingSyllables(comment)
         val input = typed.syllables
         if (reading.isEmpty() || input.isEmpty()) return true
         val pairs = if (reading.size == input.size) {
@@ -95,10 +95,4 @@ object SpellingCorrectionGate {
         }
         return !attributable
     }
-
-    /** 纯字母音节才可能是拼音读音，其余（`📋`、`~` 补全、数字键码）一律不动。 */
-    private fun syllables(text: String): List<String> =
-        text.split('\'', ' ').filter { part -> part.isNotEmpty() }.takeIf { parts ->
-            parts.isNotEmpty() && parts.all { part -> part.all { it in 'a'..'z' || it in 'A'..'Z' } }
-        }.orEmpty()
 }

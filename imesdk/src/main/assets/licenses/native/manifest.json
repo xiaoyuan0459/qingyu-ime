@@ -102,5 +102,21 @@
     "upstreamFile": "license.txt",
     "file": "rapidjson-LICENSE.txt",
     "sha256": "a140e5d46fe734a1c78f1a3c3ef207871dd75648be71fdda8e309b23ab8b1f32"
+  },
+  {
+    "component": "cc-cedict",
+    "revision": "714c3e7ea6086956f163eb9387d627859e5c00c0e51725197b7a0c670cc2641a",
+    "source": "https://www.mdbg.net/chinese/dictionary?page=cedict",
+    "upstreamFile": "CC-BY-SA-4.0",
+    "file": "cc-cedict-LICENSE",
+    "sha256": "cde7883b9050a1104f4ac19a1572aafd6e5d7323b68351aaf51fbf4beba54966"
+  },
+  {
+    "component": "cc-cedict",
+    "revision": "714c3e7ea6086956f163eb9387d627859e5c00c0e51725197b7a0c670cc2641a",
+    "source": "https://www.mdbg.net/chinese/dictionary?page=cedict",
+    "upstreamFile": "CC-CEDICT header and modification notice",
+    "file": "cc-cedict-AUTHORS",
+    "sha256": "10860141993c3e2ac89afba0be9384214c1f256db9abfcd8cc96a501d9db3add"
   }
 ]

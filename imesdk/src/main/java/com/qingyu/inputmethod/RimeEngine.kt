@@ -7,6 +7,7 @@ import com.qingyu.imemodule.manager.InputModeSwitcher
 import com.qingyu.imemodule.prefs.AppPrefs
 import com.qingyu.imemodule.utils.StringUtils
 import com.qingyu.inputmethod.core.Candidate
+import com.qingyu.inputmethod.core.HanText
 import com.qingyu.inputmethod.core.RimeSession
 import com.qingyu.inputmethod.data.InputKey
 import com.qingyu.inputmethod.data.KeyRecordStack
@@ -18,6 +19,12 @@ import java.util.Locale
 
 object RimeEngine {
     private val keyRecordStack = KeyRecordStack()
+
+    /** 恒等编码器只建一次；此前每键都新建一个 lambda。 */
+    private val identityEncoder = FuzzySpellingGate.Encoder { it }
+    private val t9Encoder = FuzzySpellingGate.Encoder { syllable ->
+        syllable.map { T9PinYinUtils.pinyin2T9Key(it) }.joinToString("")
+    }
     private var pinyins: Array<String> = emptyArray() // 候选词界面的候选拼音列表
     var showCandidates: List<Candidate> = emptyList() // 所有待展示的候选词
     var showComposition: String = "" // 候选词上方展示的拼音
@@ -68,9 +75,7 @@ object RimeEngine {
     ): List<Candidate> {
         val parsedTyped = FuzzySpellingGate.parseTyped(typed)
         val visible = page.mapIndexedNotNull { offset, candidate ->
-            if (!TraditionalGate.keeps(candidate.text)) {
-                null
-            } else if (!FuzzySpellingGate.keeps(candidate.comment, parsedTyped, enabledFuzzyGroups, encode)) {
+            if (!FuzzySpellingGate.keeps(candidate.comment, parsedTyped, enabledFuzzyGroups, encode)) {
                 null
             } else if (!SpellingCorrectionGate.keeps(candidate.comment, parsedTyped, spellingCorrection, encode)) {
                 null
@@ -79,7 +84,9 @@ object RimeEngine {
                 candidate
             }
         }
-        val ordered = CandidateSpellingRanker.reorder(visible, typed, enabledFuzzyGroups, encode)
+        val ordered = CandidateSpellingRanker.reorder(
+            visible, parsedTyped, enabledFuzzyGroups, encode, spellingCorrection
+        )
         return suppressSingleCharacterCompletions(ordered, parsedTyped.compact, encode)
     }
 
@@ -98,26 +105,43 @@ object RimeEngine {
         encode: FuzzySpellingGate.Encoder,
     ): List<Candidate> {
         if (candidates.size < 2 || compact.isEmpty()) return candidates
-        val hasFullWord = candidates.any { candidate ->
-            candidate.text.codePointCount(0, candidate.text.length) > 1 &&
-                CandidateSpellingRanker.coversInput(candidate.comment, compact, encode)
+        // 旧实现 any + filter 各算一遍 coversInput，每条候选还各自新建两份缓存。
+        // 这里保留「有完整词就提前停」的短路，只让整页共用读音展开缓存。
+        val single = BooleanArray(candidates.size) { HanText.isSingle(candidates[it].text) }
+        val normalCache = HashMap<String, List<String>>()
+        val correctionCache = HashMap<String, List<String>>()
+        var hasFullWord = false
+        for (index in candidates.indices) {
+            if (single[index]) continue
+            if (CandidateSpellingRanker.coversInput(
+                    candidates[index].comment, compact, encode, normalCache, correctionCache
+                )
+            ) {
+                hasFullWord = true
+                break
+            }
         }
         if (!hasFullWord) return candidates
-        return candidates.filter { candidate ->
-            !com.qingyu.inputmethod.core.HanText.isSingle(candidate.text) ||
-                CandidateSpellingRanker.coversInput(candidate.comment, compact, encode)
+        return candidates.filterIndexed { index, candidate ->
+            !single[index] || CandidateSpellingRanker.coversInput(
+                candidate.comment, compact, encode, normalCache, correctionCache
+            )
         }
     }
 
+    /**
+     * 只有含 ASCII 字母的候选才需要大小写转换。
+     *
+     * 中文方案的整页候选绝大多数是汉字、数字、emoji，`lowercase()/uppercase()` 的结果
+     * 与原串相同；但每个键仍会对 100 条候选各调一次，白白产生 100 个临时字符串。
+     * 先扫一遍字符（内联、无分配），没有字母就原样返回。
+     */
+    private inline fun String.applyCase(transform: (String) -> String): String =
+        if (InputModeSwitcher.isEnglish && any { it in 'a'..'z' || it in 'A'..'Z' }) transform(this) else this
+
     /** 九键的组合串是每键首字母的大写键码，归因前得先用同一张键位表把读音写成键码。 */
     internal fun spellingEncoder(schemaId: String): FuzzySpellingGate.Encoder =
-        if (schemaId == CustomConstant.SCHEMA_ZH_T9) {
-            FuzzySpellingGate.Encoder { syllable ->
-                syllable.map { T9PinYinUtils.pinyin2T9Key(it) }.joinToString("")
-            }
-        } else {
-            FuzzySpellingGate.Encoder { it }
-        }
+        if (schemaId == CustomConstant.SCHEMA_ZH_T9) t9Encoder else identityEncoder
 
     fun init() {
         RimeSession.start()
@@ -175,17 +199,19 @@ object RimeEngine {
         when (charCase) {
             KeyEvent.META_SHIFT_ON -> {
                 for (item in candidates) {
-                    item.text = item.text.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                    item.text = item.text.applyCase {
+                        it.lowercase().replaceFirstChar { first -> if (first.isLowerCase()) first.titlecase(Locale.getDefault()) else first.toString() }
+                    }
                 }
             }
             KeyEvent.META_CAPS_LOCK_ON -> {
                 for (item in candidates) {
-                    item.text = item.text.uppercase()
+                    item.text = item.text.applyCase { it.uppercase() }
                 }
             }
             else -> {
                 for (item in candidates) {
-                    item.text = item.text.lowercase()
+                    item.text = item.text.applyCase { it.lowercase() }
                 }
             }
         }
@@ -299,17 +325,18 @@ object RimeEngine {
         }
     }
 
+    fun refreshScriptCandidates() { updateCandidatesOrCommitText() }
+
     private fun updateCandidatesOrCommitText(): String? {
         val rimeCommit = RimeSession.commit()
         if (rimeCommit != null) {
             keyRecordStack.clear()
             preCommitText = rimeCommit.commitText
-            preCommitText = if (charCase == KeyEvent.META_SHIFT_ON) {
-                preCommitText.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-            } else if (charCase == KeyEvent.META_CAPS_LOCK_ON) {
-                preCommitText.uppercase()
-            } else {
-                preCommitText.lowercase()
+            preCommitText = preCommitText.applyCase { text ->
+                if (charCase == KeyEvent.META_SHIFT_ON) {
+                    text.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                } else if (charCase == KeyEvent.META_CAPS_LOCK_ON) text.uppercase()
+                else text.lowercase()
             }
             showComposition = ""
             showCandidates = emptyList()
@@ -333,7 +360,9 @@ object RimeEngine {
                     phrase.add(0, compositionText)
                 }
                 customPhraseSize = phrase.size
-                phrase.map { content -> Candidate("📋", content) } + visible
+                // 没有自定义短语时别再拼一次空列表（每键一次也浪费）。
+                if (phrase.isEmpty()) visible
+                else phrase.map { content -> Candidate("📋", content) } + visible
             }
             else -> visible
         }
@@ -348,18 +377,28 @@ object RimeEngine {
             KeyEvent.META_SHIFT_ON -> {
                 // 仅对 Rime 常规候选(而非常用语等自定义短语)做首字母大写,
                 // 保留用户存储的自定义短语原本大小写(#881)
-                for (index in customPhraseSize until showCandidates.size) showCandidates[index].text = showCandidates[index].text.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-                composition = composition.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                for (index in customPhraseSize until showCandidates.size) {
+                    showCandidates[index].text = showCandidates[index].text.applyCase {
+                        it.lowercase().replaceFirstChar { first -> if (first.isLowerCase()) first.titlecase(Locale.getDefault()) else first.toString() }
+                    }
+                }
+                composition = composition.applyCase {
+                    it.lowercase().replaceFirstChar { first -> if (first.isLowerCase()) first.titlecase(Locale.getDefault()) else first.toString() }
+                }
             }
             KeyEvent.META_CAPS_LOCK_ON -> {
                 // 同上:跳过自定义短语,不做全大写转换
-                for (index in customPhraseSize until showCandidates.size) showCandidates[index].text = showCandidates[index].text.uppercase()
-                composition = composition.uppercase()
+                for (index in customPhraseSize until showCandidates.size) {
+                    showCandidates[index].text = showCandidates[index].text.applyCase { it.uppercase() }
+                }
+                composition = composition.applyCase { it.uppercase() }
             }
             else -> {
                 // 同上:跳过自定义短语,不做全小写转换(#881 常用语大写信息变小写)
-                for (index in customPhraseSize until showCandidates.size) showCandidates[index].text = showCandidates[index].text.lowercase()
-                composition = composition.lowercase()
+                for (index in customPhraseSize until showCandidates.size) {
+                    showCandidates[index].text = showCandidates[index].text.applyCase { it.lowercase() }
+                }
+                composition = composition.applyCase { it.lowercase() }
             }
         }
         // 码串大写的方案在 CAPS 分支里会被整串转成大写，但组合串提示是拼音，统一压回小写，

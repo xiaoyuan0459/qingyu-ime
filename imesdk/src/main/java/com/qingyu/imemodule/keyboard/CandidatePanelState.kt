@@ -119,7 +119,7 @@ class CandidatePanelState {
             (first == null || strokeCodes[first].orEmpty().split(' ').none {
                 it.firstOrNull()?.lowercaseChar() == firstStroke
             })) return@mapIndexedNotNull null
-        Entry(index, candidate.text)
+            Entry(index, candidate.displayText)
     }
 
     fun missingCodes(source: List<Candidate>): List<String> = source.mapNotNull { HanText.first(it.text) }

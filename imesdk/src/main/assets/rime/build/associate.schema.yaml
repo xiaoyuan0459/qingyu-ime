@@ -30,7 +30,8 @@ engine:
     - fallback_segmentor
   translators:
     - punct_translator
-    - script_translator
+    - "qingyu_native@translator"
+    - "qingyu_native@native_traditional"
 menu:
   page_size: 1000
 schema:
@@ -5870,3 +5871,12 @@ translator:
   prism: pinyin
   enable_completion: true
   initial_quality: 1.2
+
+native_traditional:
+  dictionary: native_hant
+  # 棱镜复用全拼那一份；不写这行则棱镜名回落到 schema_id（= associate），
+  # 等于依赖一份不存在的文件。复用它的代价是：本方案与全拼共享同一份拼写规则。
+  enable_completion: true
+  initial_quality: 1.2
+  prism: associate_native_hant
+  user_dict: native_hant

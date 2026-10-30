@@ -25,14 +25,14 @@ class AssociationSessionTest {
         try {
             // Await Launcher's synchronized start + schema selection before using the session.
             assertTrue(Kernel.initImeSchema("pinyin"))
-            RimeSession.setOption("traditionalization", true)
+            assertTrue(RimeSession.setScriptMode(1))
             RimeSession.clearInput()
             "nihao".forEach { RimeSession.processKey(it.code, 0) }
             val before = RimeSession.currentContext()!!
             val status = RimeSession.currentStatus()!!
             assertTrue(!before.composition?.preedit.isNullOrEmpty())
             val words = AssociatePredictor.words("原")
-            assertTrue("Expected prefix completions from the builtin pack", words.any { it == "原来" })
+            assertTrue("Expected native traditional completions", words.any { it == "原來" })
             val after = RimeSession.currentContext()!!
             assertEquals("pinyin", RimeSession.currentSchemaId())
             assertEquals(status.isTraditional, RimeSession.currentStatus()!!.isTraditional)

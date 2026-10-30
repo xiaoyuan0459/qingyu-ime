@@ -148,6 +148,10 @@ object ImeDataRepository {
     fun phrase(content: String) = snapshot.phrases.firstOrNull { it.content == content }?.copy()
     fun phrasesForCode(code: String) = snapshot.phrases
         .filter { it.qwerty == code || it.t9 == code || it.lx17 == code }.map { it.copy() }
+
+    /** 候选装配热路径只读正文，不需要可编辑实体副本。 */
+    fun phraseContentsForCode(code: String) = snapshot.phrases
+        .filter { it.qwerty == code || it.t9 == code || it.lx17 == code }.map { it.content }
     fun sideSymbols(type: String = "pinyin") =
         (if (type == "number") snapshot.numberSymbols else snapshot.pinyinSymbols).map { it.copy() }
     fun menus() = snapshot.menus.map { it.copy() }

@@ -49,14 +49,17 @@ class MenuAdapter(context: Context?, val data: MutableList<SkbFunItem>) : Recycl
         // 网格图标与文字同为中灰（对齐参考工具箱），仅选中/编辑态用强调色
         val color = if (selected) theme.accentKeyBackgroundColor else
             ColorUtils.setAlphaComponent(theme.keyTextColor, (Color.alpha(theme.keyTextColor) * 0.62f).toInt())
-        holder.name.text = item.funName
+        val label = if (item.skbMenuMode == com.qingyu.imemodule.prefs.behavior.SkbMenuMode.JianFan)
+            holder.itemView.context.getString(com.qingyu.imemodule.prefs.AppPrefs.getInstance().input.scriptMode.getValue().label)
+            else item.funName
+        holder.name.text = label
         holder.name.setTextColor(color)
         holder.icon.setImageResource(item.funImgResource)
         holder.icon.drawable?.setTint(color)
         holder.itemView.isSelected = selected
         holder.itemView.isEnabled = editing?.editingEnabled != false
         holder.itemView.alpha = if (holder.itemView.isEnabled) 1f else 0.5f
-        holder.itemView.contentDescription = item.funName
+        holder.itemView.contentDescription = label
         holder.name.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         holder.icon.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         holder.option.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO

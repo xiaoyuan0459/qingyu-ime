@@ -46,7 +46,7 @@ fun isSettingsMenuSelect(data: SkbFunItem): Boolean {
     return when (data.skbMenuMode) {
         SkbMenuMode.DarkTheme -> ThemeManager.activeTheme.isDark
         SkbMenuMode.NumberRow -> AppPrefs.getInstance().keyboardSetting.abcNumberLine.getValue()
-        SkbMenuMode.JianFan -> AppPrefs.getInstance().input.chineseFanTi.getValue()
+        SkbMenuMode.JianFan -> AppPrefs.getInstance().input.scriptMode.getValue() != com.qingyu.imemodule.prefs.behavior.ScriptMode.Simplified
         SkbMenuMode.LockEnglish -> AppPrefs.getInstance().keyboardSetting.keyboardLockEnglish.getValue()
         SkbMenuMode.SymbolShow -> ThemeManager.prefs.keyboardSymbol.getValue()
         SkbMenuMode.Mnemonic -> AppPrefs.getInstance().keyboardSetting.keyboardMnemonic.getValue()

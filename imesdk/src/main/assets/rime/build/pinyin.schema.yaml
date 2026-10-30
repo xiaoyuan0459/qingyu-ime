@@ -16,8 +16,7 @@ emoji:
   option_name: emoji
 engine:
   filters:
-    - "simplifier@emoji"
-    - "simplifier@traditionalize"
+    - "qingyu_emoji@emoji"
     - uniquifier
   processors:
     - ascii_composer
@@ -35,7 +34,8 @@ engine:
   translators:
     - punct_translator
     - echo_translator
-    - script_translator
+    - "qingyu_native@translator"
+    - "qingyu_native@native_traditional"
     - "table_translator@english"
     - "table_translator@cn_en"
 english:
@@ -5886,9 +5886,6 @@ speller:
     - "correct/^zuo$/zup/"
     - "correct/^zuo$/zyo/"
     # <<< 相邻键纠错表结束
-traditionalize:
-  opencc_config: s2t.json
-  option_name: traditionalization
 translator:
   always_show_comments: true
   dictionary: pinyin
@@ -5898,3 +5895,15 @@ translator:
   enable_correction: false
   initial_quality: 1.2
   spelling_hints: 100
+
+native_traditional:
+  always_show_comments: true
+  dictionary: native_hant
+  # 邻键纠错在 librime 1.11.2 里不可用：最多 4 条纠错候选（max_corrections 写死）按词频
+  # 混排，实测 song 出「动/定/东」压过「送」、zong 出「行/新/心/信」压过「总」。
+  # 关掉的原因与重开条件见 docs/TECHNICAL_DEBT.md DEBT-CORRECTION-01。
+  enable_correction: false
+  initial_quality: 1.2
+  spelling_hints: 100
+  prism: pinyin_native_hant
+  user_dict: native_hant

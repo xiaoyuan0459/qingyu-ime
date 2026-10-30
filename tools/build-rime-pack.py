@@ -1,25 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""组装并封装轻语内置的雾凇拼音词库。
+"""组装并封装轻语内置的白霜拼音词库。
 
-词库源使用固定 revision 的 rime-ice（GPL-3.0-only），应用整体同样以
+词库源默认使用固定 revision 的 rime-frost（GPL-3.0-or-later），应用整体以
 GPL-3.0-only 发布。脚本先生成 librime 部署输入，再把设备编译产物封装成带哈希清单的
 `rime-base`；APK 只携带运行时产物，完整对应源码可由固定 revision 重建。
 
-词表与拼音继承上游，**权重由本工程自己算**：组装时把 `--freq` 指向的覆盖表
-（`tools/gen-dict-freq.py` 的产物）写进各分表的权重列，上游源文件保持原样；
-自有增词与钉死权重放在 `imesdk/rime-src/cn_dicts/qingyu_overlay.dict.yaml`。
+默认白霜保留上游分表与权重，不导入轻语的雾凇叠加层或 essay 权重。
+只有显式传入 `--freq` 才注入自有频率表，上游源文件保持原样。
 
 行尾口径：词库与词表一律按 **LF** 处理——校验用 `sha256_text`（先把 CRLF 折成 LF），
 组装时文本也折成 LF 再落盘；因此 Windows 上 `core.autocrlf=true` 的检出不会算出第二个哈希，
 编出来的 `*.table.bin` 也与 LF 检出一致。
 
 用法：
-    python tools/gen-dict-freq.py                         # 先生成频率覆盖表
-    python tools/build-rime-pack.py                      # 组装到 build/m3/src
-    python tools/build-rime-pack.py --no-freq            # 退回纯上游权重（对照用）
+    python tools/build-rime-pack.py                      # 白霜原生词频，组装 build/frost/src
+    python tools/build-rime-pack.py --upstream ice        # 独立构建雾凇
+    python tools/build-rime-pack.py --freq build/freq/qingyu-freq.tsv # 显式使用自有频率
     python tools/build-rime-pack.py --out build/x/src    # 换输出目录
-    python tools/build-rime-pack.py --package             # 封装已编译的 build/m3/out
+    python tools/build-rime-pack.py --package             # 封装已编译的 build/frost/out
 
 上游数据缺失时脚本会打印获取命令后退出（不替你联网拉取）。
 """
@@ -33,11 +32,13 @@ import shutil
 import subprocess
 import sys
 import zipfile
+from pathlib import Path
 
 # 同目录模块：自有频率覆盖表的读取与注入（见 tools/rime_freq.py）
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rime_freq import apply_freq_table  # noqa: E402
-from rime_essay import DAMP_FACTOR, DAMP_FLOOR, damp_traditional, load_traditional_chars  # noqa: E402
+from rime_associations import build_associations  # noqa: E402
+from rime_native_forms import build_native_forms, native_compile_schemas  # noqa: E402
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 SCHEMA_DIR = os.path.join(REPO, "imesdk", "src", "main", "assets", "rime", "build")
@@ -68,7 +69,7 @@ CN_EN_TABLES = [
 
 RIME_FROST_REVISION = "96278d87bf29403dd16ac854e71c496ab6ee5e71"
 
-# 上游词库源。ice 是随 APK 分发的默认包；frost 只做独立可导入的 pack，不进 APK。
+# 默认使用白霜原生词频；雾凇仍可显式构建为独立导入包。
 UPSTREAMS = {
     "ice": {
         "clone": os.path.join(REPO, "build", "rime-src"),
@@ -80,7 +81,7 @@ UPSTREAMS = {
         "spdx": "GPL-3.0-only",
         "version": "2026.09.20+9e66b07",
         "work": os.path.join(REPO, "build", "m3"),
-        "archive": os.path.join(REPO, "imesdk", "src", "main", "assets", "rime-base.zip"),
+        "archive": None,
     },
     "frost": {
         "clone": os.path.join(REPO, "build", "upstream", "rime-frost"),
@@ -92,7 +93,7 @@ UPSTREAMS = {
         "spdx": "GPL-3.0-or-later",
         "version": "2026.09.20+96278d8",
         "work": os.path.join(REPO, "build", "frost"),
-        "archive": None,  # 独立分发，绝不解进 assets
+        "archive": os.path.join(REPO, "imesdk", "src", "main", "assets", "rime-base.zip"),
     },
 }
 
@@ -223,13 +224,19 @@ def package_runtime(source, compiled, clone, stroke, pack_out, archive_out, upst
         shutil.rmtree(pack_out)
     os.makedirs(pack_out)
     shutil.copytree(compiled, os.path.join(pack_out, "build"))
+    build_associations(source, os.path.join(pack_out, "associate.bin"))
+    build_associations(source, os.path.join(pack_out, "associate-traditional.bin"), "native_hant.dict.yaml")
+    for name in ("native-forms.json", "AUTHORS.cc-cedict"):
+        copy_normalized(os.path.join(source, name), os.path.join(pack_out, name))
+    copy_normalized(os.path.join(REPO, "imesdk", "src", "main", "assets", "licenses", "native", "cc-cedict-LICENSE"), os.path.join(pack_out, "LICENSE.cc-cedict"))
     # associate 需要参与编译，但它只是联想内部查询方案，不出现在用户方案列表中。
     with open(os.path.join(pack_out, "build", "default.yaml"), "w", encoding="utf-8", newline="\n") as stream:
         stream.write("menu:\n  page_size: 100\nschema_list:\n")
         stream.writelines(f"  - schema: {schema}\n" for schema in PUBLIC_SCHEMAS)
-    # emoji 来自 rime-ice；简繁转换表来自 OpenCC（均可在 GPL-3.0-only 下组合分发）。
+    # 仅保留 emoji 的 OpenCC 配置；原生繁体来源与许可独立登记。
     opencc_out = os.path.join(pack_out, "opencc")
-    shutil.copytree(os.path.join(REPO, "imesdk", "src", "main", "assets", "rime", "opencc"), opencc_out)
+    shutil.copytree(os.path.join(REPO, "imesdk", "src", "main", "assets", "rime", "opencc"), opencc_out,
+                    ignore=shutil.ignore_patterns("s2t.json", "t2s.json", "STCharacters.txt", "STPhrases.txt", "TSCharacters.txt", "TSPhrases.txt"))
     # 中英混输词表：原样进包，运行时由 librime 当只读 stabledb 打开
     tables_out = os.path.join(pack_out, "en_dicts")
     os.makedirs(tables_out)
@@ -262,10 +269,13 @@ def package_runtime(source, compiled, clone, stroke, pack_out, archive_out, upst
             "- 方案装配清单：本仓库 `imesdk/rime-src/`（词典装配表）+ "
             "`imesdk/src/main/assets/rime/build/`（各 `*.schema.yaml` 与 `default.yaml`）\n"
             "- 构建脚本：本仓库 `tools/build-rime-pack.py`（装配源树并调用 `qingyu_deployer` 编译）\n"
-            "- OpenCC 简繁转换表：https://github.com/BYVoid/OpenCC\n"
+            "- OpenCC 仅用于 emoji：https://github.com/BYVoid/OpenCC\n"
+            "- 原生繁体词条：CC-CEDICT，固定来源、哈希、归属和修改说明见 native-forms.json / AUTHORS.cc-cedict / LICENSE.cc-cedict；词频适配层 GPL-3.0-only\n"
+            "- 只读联想索引：tools/rime_associations.py，按本轮实际导入分表生成，QYAS0001 格式\n"
         )
 
-    required = ["build/default.yaml", "build/pinyin.table.bin",
+    # 索引由 files 的哈希清单强制校验；requiredArtifacts 专用于 librime 的 build/ 产物。
+    required = ["build/native_hant.table.bin", "build/default.yaml", "build/pinyin.table.bin",
                 "build/english.table.bin", "build/stroke.table.bin"]
     required.extend(f"build/{schema}.schema.yaml" for schema in SCHEMAS)
     required.extend(
@@ -379,19 +389,17 @@ def assert_shared_prisms_agree(out):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--upstream", choices=sorted(UPSTREAMS), default="ice",
-                    help="词库源：ice=雾凇（随 APK 分发的默认包），frost=白霜（只独立分发）")
+    ap.add_argument("--upstream", choices=sorted(UPSTREAMS), default="frost",
+                    help="词库源：frost=白霜（默认内置），ice=雾凇（独立导入包）")
     ap.add_argument("--clone", default=None, help="上游词库克隆目录（默认按 --upstream 取）")
     ap.add_argument("--stroke", default=os.path.join(REPO, "build", "upstream", "rime-stroke"),
                     help="五笔画词库源（rime/rime-stroke）的克隆目录")
     ap.add_argument("--essay", default=os.path.join(REPO, "build", "m3", "essay.txt"),
                     help="预置词汇表 essay.txt")
-    ap.add_argument("--freq", default=os.path.join(REPO, "build", "freq", "qingyu-freq.tsv"),
-                    help="自有频率覆盖表（tools/gen-dict-freq.py 的产物；缺失则沿用上游权重）")
+    ap.add_argument("--freq", default=None,
+                    help="显式注入自有频率覆盖表；默认保留所选上游的原生词频")
     ap.add_argument("--no-freq", dest="freq", action="store_const", const=None,
                     help="不注入自有频率，完全沿用上游权重")
-    ap.add_argument("--no-essay-damp", dest="essay_damp", action="store_false",
-                    help="不给 essay 里的繁体词条降权（默认会降，否则繁体候选会插到简体前面）")
     ap.add_argument("--out", default=None, help="输出的部署输入目录")
     ap.add_argument("--compiled", default=None, help="qingyu_deployer 的编译输出目录")
     ap.add_argument("--pack-out", default=None, help="最终 pack 的临时展开目录")
@@ -448,6 +456,8 @@ def main():
     # 上游数据（GPL）：分表 + 英文词库
     copy_tree(os.path.join(args.clone, "cn_dicts"), "cn_dicts")
     copy_tree(os.path.join(args.clone, "en_dicts"), "en_dicts")
+    if args.upstream == "frost":
+        copy_tree(os.path.join(args.clone, "cn_dicts_cell"), "cn_dicts_cell")
     # 自有频率：只改组装产物的权重列，上游源文件与 revision 保持原样
     if args.freq and os.path.exists(args.freq):
         total, changed, matched = apply_freq_table(os.path.join(out, "cn_dicts"), args.freq)
@@ -461,22 +471,23 @@ def main():
                  f"确实要用纯上游权重时显式加 --no-freq")
     # 预置词汇表（LGPL）
     copy_file(args.essay, "essay.txt")
-    # essay 是跨简繁词表，繁体形式会在同音节里插到简体候选前面（实测「我們」479209
-    # 压过降权后的「我们」356572）。只改组装产物，不动上游源文件。
-    if args.essay_damp:
-        traditional = load_traditional_chars(
-            os.path.join(REPO, "imesdk", "src", "main", "assets", "rime", "opencc"))
-        changed, total = damp_traditional(os.path.join(out, "essay.txt"), traditional)
-        print(f"essay 繁体降权：{changed:,} / {total:,} 条"
-              f"（权重 ≥{DAMP_FLOOR}，×{DAMP_FACTOR}）")
-        if not traditional:
-            print("警告：没有读到 STCharacters.txt，繁体词条未处理")
     # 五笔画词库（LGPL-3.0-or-later，来自另一个上游仓）
     copy_file(os.path.join(args.stroke, "stroke.dict.yaml"), "stroke.dict.yaml")
     # 本工程自写的装配清单
     for name in sorted(os.listdir(MANIFEST_DIR)):
         if name.endswith(".dict.yaml"):
             copy_file(os.path.join(MANIFEST_DIR, name), name)
+    if args.upstream == "frost":
+        # 直接沿用固定 revision 的默认分表及其词频，不混入雾凇频率或轻语钉死权重。
+        # corrections 是注释提示表，当前客户端不实现该提示协议，避免把提示文本当正文上屏。
+        with open(os.path.join(args.clone, "rime_frost.dict.yaml"), encoding="utf-8") as stream:
+            dictionary = stream.read().replace("\r\n", "\n")
+        header = dictionary.split("...", 1)[0]
+        header = re.sub(r"^name: rime_frost$", "name: pinyin", header, flags=re.M)
+        header = re.sub(r"^  - cn_dicts/corrections.*\n", "", header, flags=re.M)
+        header = header.replace("import_tables:", "sort: by_weight\nuse_preset_vocabulary: false\nimport_tables:")
+        with open(os.path.join(out, "pinyin.dict.yaml"), "w", encoding="utf-8", newline="\n") as stream:
+            stream.write(header + "...\n")
     # 本工程自有的叠加层分表，与上游分表同目录（import_tables 按 cn_dicts/xxx 引用）
     own_dicts = os.path.join(MANIFEST_DIR, "cn_dicts")
     if os.path.isdir(own_dicts):
@@ -488,10 +499,13 @@ def main():
         if name.endswith(".schema.yaml") or name == "default.yaml":
             copy_file(os.path.join(SCHEMA_DIR, name), name)
 
+    build_native_forms(Path(out), Path(REPO))
+    native_schemas = native_compile_schemas(Path(out))
+
     # 部署器只编译 default.yaml 的 schema_list；associate 需要参与编译但不进用户方案列表。
     with open(os.path.join(out, "default.yaml"), "w", encoding="utf-8", newline="\n") as stream:
         stream.write("menu:\n  page_size: 100\nschema_list:\n")
-        stream.writelines(f"  - schema: {schema}\n" for schema in SCHEMAS)
+        stream.writelines(f"  - schema: {schema}\n" for schema in SCHEMAS + native_schemas)
 
     assert_shared_prisms_agree(out)
 

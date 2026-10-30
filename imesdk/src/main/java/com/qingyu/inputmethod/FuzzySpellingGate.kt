@@ -98,7 +98,7 @@ object FuzzySpellingGate {
     internal class TypedInput(val syllables: List<String>, val compact: String)
 
     internal fun parseTyped(typed: String): TypedInput =
-        TypedInput(syllables(typed), typed.filter { it != '\'' && it != ' ' })
+        TypedInput(ReadingCache.syllables(typed), typed.filter { it != '\'' && it != ' ' })
 
     /** schema 允许的读音改写里，不依赖模糊/纠错开关的基础写法。 */
     internal fun baseForms(sound: String): List<String> {
@@ -109,7 +109,7 @@ object FuzzySpellingGate {
         return forms.toList()
     }
 
-    internal fun readingSyllables(comment: String): List<String> = syllables(comment)
+    internal fun readingSyllables(comment: String): List<String> = ReadingCache.syllables(comment)
 
     /**
      * [comment] 候选注释里的真实读音，[typed] 引擎原始组合串，[enabled] 打开的组名，
@@ -131,7 +131,7 @@ object FuzzySpellingGate {
         encode: Encoder,
     ): Boolean {
         if (enabled.containsAll(allGroups)) return true
-        val reading = syllables(comment)
+        val reading = ReadingCache.syllables(comment)
         val input = typed.syllables
         if (reading.isEmpty() || input.isEmpty()) return true
         val pairs = if (reading.size == input.size) {
@@ -245,10 +245,42 @@ object FuzzySpellingGate {
         }
         return forms
     }
+}
+
+/**
+ * 候选注释 → 读音音节。
+ *
+ * 整页每条候选都要用它（模糊音归因、纠错归因、来源排序、补全压制），而同一批候选
+ * 注释在连续按键、翻页、联想回填中反复出现。此前每键对每条候选都重新 split 并分配
+ * 列表，注释重复时也照做；这里按注释字符串缓存，整页只解析一次。
+ */
+internal object ReadingCache {
+    private const val LIMIT = 4096
+    private const val MAX_CACHED_LENGTH = 64
+    private val cache = HashMap<String, List<String>>(512)
+
+    @Synchronized
+    fun syllables(text: String): List<String> {
+        if (text.isEmpty()) return emptyList()
+        if (text.length > MAX_CACHED_LENGTH) return parse(text)
+        cache[text]?.let { return it }
+        val parsed = parse(text)
+        if (cache.size >= LIMIT) cache.clear()
+        cache[text] = parsed
+        return parsed
+    }
 
     /** 纯字母音节才可能是拼音读音，其余（`📋`、`~` 补全、数字键码）一律不当模糊音处理。 */
-    private fun syllables(text: String): List<String> =
-        text.split('\'', ' ').filter { part -> part.isNotEmpty() }.takeIf { parts ->
-            parts.isNotEmpty() && parts.all { part -> part.all { it in 'a'..'z' || it in 'A'..'Z' } }
-        }.orEmpty()
+    private fun parse(text: String): List<String> {
+        var hasLetter = false
+        for (char in text) {
+            when {
+                char in 'a'..'z' || char in 'A'..'Z' -> hasLetter = true
+                char == '\'' || char == ' ' -> Unit
+                else -> return emptyList()
+            }
+        }
+        if (!hasLetter) return emptyList()
+        return text.split('\'', ' ').filter { it.isNotEmpty() }
+    }
 }

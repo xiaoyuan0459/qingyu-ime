@@ -55,9 +55,7 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
             KeyboardManager.instance.switchKeyboard()
         }
         SkbMenuMode.JianFan -> {
-            val chineseFanTi = AppPrefs.getInstance().input.chineseFanTi.getValue()
-            AppPrefs.getInstance().input.chineseFanTi.setValue(!chineseFanTi)
-            Kernel.nativeUpdateImeOption()
+            com.qingyu.inputmethod.ScriptModeController.select(AppPrefs.getInstance().input.scriptMode.getValue().next())
             KeyboardManager.instance.switchKeyboard()
         }
         SkbMenuMode.LockEnglish -> {

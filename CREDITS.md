@@ -15,7 +15,7 @@
 | --- | --- | --- | --- |
 | YuyanIme | Android 输入法框架、键盘视图和设置结构的起点；本仓库在此基础上重构 | [gurecn/YuyanIme](https://github.com/gurecn/YuyanIme)，Copyright (c) 2026 王莹 | BSD-3-Clause |
 | librime 1.11.2 | Rime 输入引擎，自行编译并带本地补丁 | [rime/librime](https://github.com/rime/librime) `5b09f35b…` | BSD-3-Clause |
-| OpenCC | 简繁、emoji 等转换数据 | [BYVoid/OpenCC](https://github.com/BYVoid/OpenCC) `e5d6c5f1…` | Apache-2.0 |
+| OpenCC | 仅 emoji 转换；不参与简繁改写 | [BYVoid/OpenCC](https://github.com/BYVoid/OpenCC) `e5d6c5f1…` | Apache-2.0 |
 | ncnn 20260526 | 手写识别推理运行时 | [Tencent/ncnn](https://github.com/Tencent/ncnn/releases/tag/20260526) | BSD-3-Clause |
 | Vosk Android 0.3.47 | 本地离线语音识别 | [alphacep/vosk-api](https://github.com/alphacep/vosk-api)，`com.alphacephei:vosk-android` | Apache-2.0 |
 | JNA 5.13.0 | Vosk Android 的传递依赖 | [java-native-access/jna](https://github.com/java-native-access/jna) | LGPL-2.1-or-later 或 Apache-2.0 |
@@ -27,11 +27,11 @@
 
 | 项目 | 轻语中的用途 | 固定来源 | 许可 |
 | --- | --- | --- | --- |
-| 雾凇拼音（rime-ice） | 内置默认词库包 | revision `9e66b07…`，[iDvel/rime-ice](https://github.com/iDvel/rime-ice) | GPL-3.0-only |
+| 雾凇拼音（rime-ice） | 可选独立词库、白霜上游来源 | revision `9e66b07…`，[iDvel/rime-ice](https://github.com/iDvel/rime-ice) | GPL-3.0-only |
 | rime-essay | 默认词库的基础数据 | revision `e2652ea…`，[rime/rime-essay](https://github.com/rime/rime-essay) | LGPL-3.0 |
 | rime-stroke | 五笔画词库；含 CNS11643 与北大中文论坛归属 | revision `1e8fff9b…`，[rime/rime-stroke](https://github.com/rime/rime-stroke) | LGPL-3.0-or-later |
 | pinyin-data v0.15.0 | 汉字拼音表 `pinyin_table.txt` | [mozillazg/pinyin-data](https://github.com/mozillazg/pinyin-data) | MIT |
-| 白霜（rime-frost） | 可选词库包，独立分发，不随 APK 内置 | revision `96278d8`，[gaboolic/rime-frost](https://github.com/gaboolic/rime-frost) | GPL-3.0-or-later |
+| 白霜（rime-frost） | 内置默认词库与只读联想索引，保留上游词频 | revision `96278d8`，[gaboolic/rime-frost](https://github.com/gaboolic/rime-frost) | GPL-3.0-or-later |
 | 手写识别模型 qingyu-hw-image-v1 | 默认手写识别，27,664 类 int8 权重，自有语料训练 | 本仓库 `tools/handwriting/` 流水线 | GPL-3.0-only（随项目整体） |
 | OFL 训练字体 × 8 | 仅构建期渲染训练图像，不随包分发 | Ma Shan Zheng / Zhi Mang Xing / Long Cang / Liu Jian Mao Cao / LXGW WenKai / Klee One / Noto Sans SC / Noto Serif SC | SIL OFL 1.1 |
 | Vosk 中文小模型 `vosk-model-small-cn-0.22` | 可选离线语音识别，首次开启时下载 | [Vosk models](https://alphacephei.com/vosk/models) | Apache-2.0 |
@@ -68,6 +68,8 @@
 | pinyin4j / `ResourceHelper.java` | 已移除 | 曾以 GPL 源码拷入；现改用 MIT 的 pinyin-data 与自研 `HanziPinyin` |
 
 历史细节与处置依据见 [MIGRATION.md](MIGRATION.md)、[ADR 0004](docs/adr/0004-整体GPL-3.0-only开源路线与上游许可义务.md) 和 [LICENSING.md](LICENSING.md)。
+
+原生繁体资料来自 [CC-CEDICT](https://www.mdbg.net/chinese/dictionary?page=cedict)，快照 2026-10-28，原始文本 SHA-256 `714c3e7ea6086956f163eb9387d627859e5c00c0e51725197b7a0c670cc2641a`，CC-BY-SA-4.0。词形与读音索引、白霜词频连接和来源标注的异体排序适配层使用 GPL-3.0-only（[CC 官方单向兼容说明](https://creativecommons.org/compatible-licenses/)）；原始归属、许可及修改说明随 APK 与 pack 分发。
 
 ## 四、尚未完成归属的内容
 

@@ -349,7 +349,17 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
                 setOnClickListener { mCvListener.onClickMenu(item.skbMenuMode) }
             }
             val wide = item.skbMenuMode == SkbMenuMode.TextEdit
-            mMenuItemsContainer.addView(createMenuIconSlot(icon),
+            val slot = createMenuIconSlot(icon)
+            if (item.skbMenuMode == SkbMenuMode.JianFan) {
+                icon.visibility = View.INVISIBLE
+                slot.addView(TextView(context).apply {
+                    tag = "script-mode"
+                    gravity = Gravity.CENTER
+                    textSize = 16f
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }, FrameLayout.LayoutParams(dp(32), dp(24), Gravity.CENTER))
+            }
+            mMenuItemsContainer.addView(slot,
                 LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, if (wide) 1.15f else 1f))
         }
         tintMenuViews()
@@ -380,6 +390,13 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             val selected = isSettingsMenuSelect(item)
             mMenuItemsContainer.getChildAt(i).isSelected = selected
             icon.drawable?.setTint(if (selected) ThemeManager.activeTheme.accentKeyBackgroundColor else textColor)
+            if (item.skbMenuMode == SkbMenuMode.JianFan) {
+                val mode = AppPrefs.getInstance().input.scriptMode.getValue()
+                val label = (mMenuItemsContainer.getChildAt(i) as FrameLayout).findViewWithTag<TextView>("script-mode")
+                label?.text = when (mode.nativeValue) { 1 -> "繁"; 2 -> "原"; else -> "简" }
+                label?.setTextColor(if (selected) ThemeManager.activeTheme.accentKeyBackgroundColor else textColor)
+                mMenuItemsContainer.getChildAt(i).contentDescription = context.getString(mode.label)
+            }
         }
         mMenuDivider.setBackgroundColor((textColor and 0x00FFFFFF) or 0x33000000)
     }
@@ -392,6 +409,11 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         super.onAttachedToWindow()
         serviceScope.cancel()
         serviceScope = MainScope()
+        serviceScope.launch {
+            com.qingyu.inputmethod.ScriptModeController.modeChanges.collect {
+                if (::mMenuItemsContainer.isInitialized) tintMenuViews()
+            }
+        }
         serviceScope.launch { UserDataManager.operation.collect {
             if (::mCvListener.isInitialized) showCandidates()
         } }

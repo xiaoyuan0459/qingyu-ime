@@ -15,8 +15,7 @@ emoji:
   option_name: emoji
 engine:
   filters:
-    - "simplifier@emoji"
-    - "simplifier@traditionalize"
+    - "qingyu_emoji@emoji"
     - uniquifier
   processors:
     - ascii_composer
@@ -34,7 +33,8 @@ engine:
   translators:
     - punct_translator
     - echo_translator
-    - script_translator
+    - "qingyu_native@translator"
+    - "qingyu_native@native_traditional"
     - "table_translator@english"
     - "table_translator@cn_en"
 english:
@@ -105,12 +105,17 @@ speller:
     - derive/^([jqxy])u$/\1v/
     # 超级简拼（放在映射之后，所以取到的是双拼码的首字母）
     - abbrev/^([a-z]).+$/$1/
-traditionalize:
-  opencc_config: s2t.json
-  option_name: traditionalization
 translator:
   always_show_comments: true
   dictionary: pinyin
   initial_quality: 1.2
   prism: double_pinyin_flypy
   spelling_hints: 100
+
+native_traditional:
+  always_show_comments: true
+  dictionary: native_hant
+  initial_quality: 1.2
+  spelling_hints: 100
+  prism: double_pinyin_flypy_native_hant
+  user_dict: native_hant

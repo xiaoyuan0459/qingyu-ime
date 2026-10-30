@@ -11,8 +11,7 @@ schema:
   schema_id: stroke
 engine:
   filters:
-    - "simplifier@emoji"
-    - "simplifier@traditionalize"
+    - "qingyu_emoji@emoji"
     - uniquifier
   processors:
     - ascii_composer
@@ -48,9 +47,6 @@ speller:
     - xform/p/P/
     - xform/n/N/
     - xform/z/Z/
-traditionalize:
-  opencc_config: s2t.json
-  option_name: traditionalization
 translator:
   comment_format:
     - xlit/HSPNZ/⼀⼁⼃⼂⼄/

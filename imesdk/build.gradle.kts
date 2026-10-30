@@ -51,8 +51,9 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard.cfg")
+            // 应用壳会调用 Launcher 等 SDK 入口；库先独立 R8 会把这些入口当未使用代码删除。
+            // 由最终 app 的 R8 在完整依赖图上统一收缩、混淆。
+            isMinifyEnabled = false
             resValue("string", "app_name", "@string/ime_qingyu_name")
             resValue("drawable", "app_icon", "@drawable/ic_sdk_launcher")
         }
