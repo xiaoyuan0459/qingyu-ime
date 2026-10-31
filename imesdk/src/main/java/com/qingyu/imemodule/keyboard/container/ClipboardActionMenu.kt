@@ -1,14 +1,13 @@
 package com.qingyu.imemodule.keyboard.container
 
 import android.content.Context
-import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.view.ViewCompat
 import com.qingyu.imemodule.R
@@ -17,12 +16,12 @@ import com.qingyu.imemodule.keyboard.InputView
 import com.qingyu.imemodule.utils.keyboardItemBackground
 import splitties.dimensions.dp
 
-/** Clipboard actions stay inside the IME window, anchored to the long-pressed row. */
+/** Clipboard actions stay inside the IME window, centered like the reference IME. */
 internal class ClipboardActionMenu(private val context: Context, private val inputView: InputView) {
     private var overlay: FrameLayout? = null
     private var previousAccessibility: List<Pair<View, Int>> = emptyList()
 
-    fun show(actions: List<Pair<String, () -> Unit>>, message: String?, anchor: View?) {
+    fun show(actions: List<Pair<String, () -> Unit>>, message: String?) {
         if (actions.isEmpty()) return
         dismiss()
         val host = inputView.mSkbRoot
@@ -30,22 +29,6 @@ internal class ClipboardActionMenu(private val context: Context, private val inp
         val hostHeight = host.height
         if (hostWidth <= 0 || hostHeight <= 0) return
         val margin = context.dp(4)
-        val row = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            actions.forEach { (title, action) ->
-                addView(TextView(context).apply {
-                    text = title
-                    textSize = 16f
-                    maxLines = 1
-                    minHeight = context.dp(48)
-                    gravity = Gravity.CENTER
-                    setTextColor(activeTheme.keyTextColor)
-                    setPadding(context.dp(6), context.dp(8), context.dp(6), context.dp(8))
-                    background = keyboardItemBackground(context)
-                    setOnClickListener { dismiss(); action() }
-                })
-            }
-        }
         val card = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
@@ -53,36 +36,54 @@ internal class ClipboardActionMenu(private val context: Context, private val inp
                 cornerRadius = context.dp(16).toFloat()
             }
             isClickable = true
-            setPadding(context.dp(4), context.dp(4), context.dp(4), context.dp(4))
+            setPadding(context.dp(6), context.dp(6), context.dp(6), context.dp(6))
             elevation = context.dp(8).toFloat()
             if (message != null) addView(TextView(context).apply {
                 text = message
                 textSize = 16f
                 setTextColor(activeTheme.keyTextColor)
-                setPadding(context.dp(16), context.dp(12), context.dp(16), context.dp(8))
+                setPadding(context.dp(14), context.dp(12), context.dp(14), context.dp(8))
             })
-            addView(HorizontalScrollView(context).apply {
-                isHorizontalScrollBarEnabled = false
-                addView(row, ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            actions.forEach { (title, action) ->
+                addView(TextView(context).apply {
+                    text = title
+                    textSize = 16f
+                    maxLines = 1
+                    minHeight = context.dp(48)
+                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                    setTextColor(activeTheme.keyTextColor)
+                    setPadding(context.dp(20), context.dp(10), context.dp(20), context.dp(10))
+                    background = keyboardItemBackground(context)
+                    setOnClickListener { dismiss(); action() }
+                }, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 ))
-            }, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+        }
+        // 竖向动作卡：宽度对齐搜狗约 3/4，高度超出键盘区域时在卡片内滚动。
+        val maxCardWidth = minOf((hostWidth * 0.75f).toInt(), context.dp(320))
+        val maxCardHeight = (hostHeight - 2 * margin).coerceAtLeast(context.dp(48))
+        card.measure(
+            View.MeasureSpec.makeMeasureSpec(maxCardWidth, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(maxCardHeight, View.MeasureSpec.AT_MOST)
+        )
+        val availableWidth = (hostWidth - 2 * margin).coerceAtLeast(1)
+        val cardWidth = maxCardWidth.coerceIn(1, availableWidth)
+        val cardHeight = card.measuredHeight.coerceIn(1, maxCardHeight)
+        val scroll = ScrollView(context).apply {
+            isVerticalScrollBarEnabled = false
+            addView(card, ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ))
         }
-        // 先量出内容的真实宽高，再决定卡片贴哪一侧、是否贴边收窄。
-        card.measure(
-            View.MeasureSpec.makeMeasureSpec((hostWidth - 2 * margin).coerceAtLeast(1), View.MeasureSpec.AT_MOST),
-            View.MeasureSpec.makeMeasureSpec((hostHeight - 2 * margin).coerceAtLeast(1), View.MeasureSpec.AT_MOST)
-        )
-        val cardWidth = card.measuredWidth.coerceIn(1, hostWidth - 2 * margin)
-        val cardHeight = card.measuredHeight.coerceIn(1, hostHeight - 2 * margin)
-        val (left, top) = placeCard(host, anchor, cardWidth, cardHeight, hostWidth, hostHeight)
+        // 搜狗的动作卡在键盘面板内水平、垂直居中，而不是贴着被长按的条目。
+        val left = ((hostWidth - cardWidth) / 2).coerceAtLeast(margin)
+        val top = ((hostHeight - cardHeight) / 2).coerceAtLeast(margin)
         val root = FrameLayout(context).apply {
             setBackgroundColor(0x66000000)
             isFocusableInTouchMode = true
             setOnClickListener { dismiss() }
-            addView(card, FrameLayout.LayoutParams(cardWidth, cardHeight).apply {
+            addView(scroll, FrameLayout.LayoutParams(cardWidth, cardHeight).apply {
                 leftMargin = left
                 topMargin = top
             })
@@ -99,46 +100,6 @@ internal class ClipboardActionMenu(private val context: Context, private val inp
         host.addView(root, FrameLayout.LayoutParams(hostWidth, hostHeight))
         root.requestFocus()
         ViewCompat.setAccessibilityPaneTitle(card, context.getString(R.string.clipboard_action_menu))
-    }
-
-    private fun placeCard(
-        host: View,
-        anchor: View?,
-        cardWidth: Int,
-        cardHeight: Int,
-        hostWidth: Int,
-        hostHeight: Int,
-    ): Pair<Int, Int> {
-        val margin = context.dp(8)
-        val gap = context.dp(8)
-        val anchorRect = anchorRectInHost(host, anchor)
-        val maxLeft = (hostWidth - cardWidth - margin).coerceAtLeast(margin)
-        val left = (anchorRect.centerX() - cardWidth / 2).coerceIn(margin, maxLeft)
-        val maxTop = (hostHeight - cardHeight - margin).coerceAtLeast(margin)
-        val above = anchorRect.top - gap - cardHeight
-        val below = anchorRect.bottom + gap
-        val top = when {
-            above >= margin -> above
-            below <= maxTop -> below
-            // 条目两侧都放不下时居中，至少不把卡片继续往屏幕外推。
-            else -> (hostHeight - cardHeight) / 2
-        }.coerceIn(margin, maxTop)
-        return left to top
-    }
-
-
-    private fun anchorRectInHost(host: View, anchor: View?): Rect {
-        if (anchor == null || !anchor.isAttachedToWindow) {
-            // 条目视图被回收时退回键盘底部，保持弹卡仍在可触摸区域内。
-            return Rect(host.width / 2, host.height, host.width / 2, host.height)
-        }
-        val anchorLocation = IntArray(2)
-        val hostLocation = IntArray(2)
-        anchor.getLocationInWindow(anchorLocation)
-        host.getLocationInWindow(hostLocation)
-        val left = anchorLocation[0] - hostLocation[0]
-        val top = anchorLocation[1] - hostLocation[1]
-        return Rect(left, top, left + anchor.width, top + anchor.height)
     }
 
     fun dismiss(): Boolean {

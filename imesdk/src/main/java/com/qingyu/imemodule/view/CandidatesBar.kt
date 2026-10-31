@@ -65,7 +65,6 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private lateinit var mMenuItemsContainer: LinearLayout
     private lateinit var mMenuDivider: View
     private lateinit var mPanelChrome: PanelChrome
-    private lateinit var mPanelBubble: ComposingBubble
     private var mMenuItems: List<SkbFunItem> = emptyList()
     private lateinit var mFlowerType: TextView
     private lateinit var mCandidatesAdapter: CandidatesBarAdapter
@@ -316,12 +315,6 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
                 mPanelChrome,
                 LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
             )
-            // 展开候选面板态：整行只放贴左缘的注音标签（与参考展开态顶带同形）
-            mPanelBubble = ComposingBubble(context, tabShape = true).apply { visibility = GONE }
-            mRowsContainer.addView(
-                mPanelBubble,
-                LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            )
             this.addView(mRowsContainer, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         }
         mFlowerType.textSize = instance.candidateTextSize
@@ -477,16 +470,14 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         if (showPausedBanner()) return
         val base = container as? BaseContainer
         if (base?.occupiesCandidateArea == true) {
-            // 展开候选面板：顶带原地换成贴左缘注音标签，行高不变，窗口总高与键盘态一致。
+            // 展开候选面板：顶栏让位（高度归零），注音继续复用键盘上方的打字注音标签，
+            // 只是标签下方的键盘换成了候选面板。
             mCandidatesMenuContainer.visibility = GONE
             mCandidatesDataContainer.visibility = GONE
             mPanelChrome.visibility = GONE
-            mPanelBubble.visibility = VISIBLE
-            mPanelBubble.bind(composing, instance.skbWidth / 2)
             requestHeaderLayout(HEADER_PANEL)
             return
         }
-        mPanelBubble.visibility = GONE
         if (base?.chromeInBar == true) {
             // 顶栏原地渲染成面板标题栏：同一行画布只换内容，行高位置不变。
             mCandidatesMenuContainer.visibility = GONE
@@ -617,10 +608,13 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val panelMode = (KeyboardManager.instance.currentContainer as? BaseContainer)?.occupiesCandidateArea == true
         val headerHeight = when {
+            // 展开候选面板：顶栏消失，面板上移，注音标签正好贴在面板上沿。
+            panelMode -> 0
             pausedBanner.visibility == VISIBLE -> dp(48)
             instance.handwritingFullScreenActive && !instance.isLandscape && !instance.keyboardModeFloat -> instance.heightForCandidatesArea
-            // 空闲、输入、面板态同高：顶栏是一块常驻画布，只换内容不换高度
+            // 空闲、输入态同高：顶栏是一块常驻画布，只换内容不换高度
             else -> instance.heightForCandidates
         }
         val heightMeasure = MeasureSpec.makeMeasureSpec(headerHeight, MeasureSpec.EXACTLY)

@@ -25,8 +25,10 @@ import com.qingyu.imemodule.databinding.SdkItemToolboxBinding
 import com.qingyu.imemodule.keyboard.KeyboardManager
 import com.qingyu.imemodule.prefs.AppPrefs
 import com.qingyu.imemodule.singleton.EnvironmentSingleton
+import com.qingyu.imemodule.ui.dialog.KeyboardFeedbackDialog
 import com.qingyu.imemodule.ui.navigation.navigateWithSettingsMotion
 import com.qingyu.imemodule.utils.KeyboardLoaderUtil
+import com.qingyu.imemodule.utils.KeyboardOpLog
 import com.qingyu.imemodule.view.widget.applyNavBarInsetsBottomPadding
 import com.qingyu.inputmethod.core.Kernel
 import splitties.dimensions.dp
@@ -93,7 +95,9 @@ class ToolboxFragment : Fragment() {
         return listOf(
             destination(R.string.theme, R.drawable.ic_menu_theme, R.id.themeFragment),
             destination(R.string.clipboard, R.drawable.ic_menu_clipboard, R.id.clipboardSettingsFragment),
-            destination(R.string.keyboard_feedback, R.drawable.ic_menu_touch, R.id.keyboardFeedbackFragment),
+            ToolboxItem(R.string.keyboard_feedback, R.drawable.ic_menu_touch, null) {
+                KeyboardFeedbackDialog.show(requireContext())
+            },
             destination(R.string.ime_settings_handwriting, R.drawable.ic_menu_handwriting, R.id.handwritingSettingsFragment),
             destination(R.string.ime_settings_voice, R.drawable.ic_menu_voice, R.id.voiceSettingsFragment),
             destination(R.string.setting_ime_keyboard, R.drawable.ic_menu_keyboard, R.id.keyboardSettingFragment),
@@ -195,7 +199,13 @@ class ToolboxFragment : Fragment() {
 
         fun onItemClicked(position: Int) {
             if (position == RecyclerView.NO_POSITION) return
-            data[position].onClick()
+            val item = data[position]
+            KeyboardOpLog.record(
+                "toolbox_item",
+                "title" to this@ToolboxFragment.requireContext().getString(item.title),
+                "checked" to item.isChecked?.invoke(),
+            )
+            item.onClick()
             refreshToggleState(position)
         }
     }

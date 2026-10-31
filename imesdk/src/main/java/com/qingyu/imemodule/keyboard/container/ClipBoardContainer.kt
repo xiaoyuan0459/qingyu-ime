@@ -2,6 +2,7 @@ package com.qingyu.imemodule.keyboard.container
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.Paint
 import android.text.SpannableString
 import android.text.Spanned
@@ -11,8 +12,9 @@ import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
-import androidx.recyclerview.widget.GridLayoutManager
+import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.qingyu.imemodule.R
 import com.qingyu.imemodule.adapter.ClipBoardAdapter
 import com.qingyu.imemodule.data.theme.ThemeManager.activeTheme
@@ -23,22 +25,19 @@ import com.qingyu.imemodule.libs.recyclerview.SwipeMenuBridge
 import com.qingyu.imemodule.libs.recyclerview.SwipeMenuItem
 import com.qingyu.imemodule.libs.recyclerview.SwipeRecyclerView
 import com.qingyu.imemodule.prefs.AppPrefs
-import com.qingyu.imemodule.prefs.behavior.ClipboardLayoutMode
 import com.qingyu.imemodule.prefs.behavior.SkbMenuMode
-import com.qingyu.imemodule.singleton.EnvironmentSingleton
 import com.qingyu.imemodule.keyboard.InputView
 import com.qingyu.imemodule.keyboard.KeyboardManager
-import com.qingyu.imemodule.manager.layout.CustomGridLayoutManager
 import com.qingyu.imemodule.singleton.EnvironmentSingleton.Companion.instance
 import com.qingyu.imemodule.data.menuSkbFunsPreset
 import com.qingyu.imemodule.utils.keyboardItemBackground
+import com.qingyu.imemodule.utils.KeyboardOpLog
 import com.qingyu.imemodule.view.PanelChrome
 import androidx.core.view.AccessibilityDelegateCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import splitties.dimensions.dp
 import splitties.views.textResource
-import kotlin.math.ceil
 
 /**
  * 粘贴板列表键盘容器
@@ -48,13 +47,30 @@ import kotlin.math.ceil
 @SuppressLint("ViewConstructor")
 class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer(context, inputView) {
     override val chromeInBar: Boolean get() = true
-    private val mPaint : Paint = Paint() // 测量字符串长度
     private val mRVSymbolsView: SwipeRecyclerView = SwipeRecyclerView(context)
+    // 1px 子 View 分隔线在 RecyclerView 里不显示，改用 ItemDecoration 画在条目底部。
+    private val dividerDecoration = object : RecyclerView.ItemDecoration() {
+        private val paint = Paint().apply {
+            color = ColorUtils.setAlphaComponent(activeTheme.keyTextColor, 36)
+            strokeWidth = 1f
+        }
+
+        override fun onDrawOver(canvas: Canvas, parent: RecyclerView, state: RecyclerView.State) {
+            val inset = dp(16)
+            for (index in 0 until parent.childCount) {
+                val child = parent.getChildAt(index)
+                if (parent.getChildAdapterPosition(child) == RecyclerView.NO_POSITION) continue
+                val y = child.bottom - 1f
+                canvas.drawLine((child.left + inset).toFloat(), y, (child.right - inset).toFloat(), y, paint)
+            }
+        }
+    }
     private var mTVLable: TextView? = null
     private var itemMode:SkbMenuMode? = null
     private var splitPanel: ClipboardSplitPanel? = null
     private var actionSaving = false
     private var navigationGeneration = 0
+    private var lastClipboardLogSignature: String? = null
     val canClearHistory get() = !actionSaving && ImeDataRepository.loadState.value == ImeDataRepository.LoadState.Ready &&
         ImeDataRepository.clipboard().any { it.isKeep == 0 }
     private val actionStatus = TextView(context).apply {
@@ -165,7 +181,6 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
     }
 
     init {
-        mPaint.textSize = dp(22f)
         initView(context)
     }
 
@@ -177,6 +192,7 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
             textSize = instance.candidateTextSize
         }
         mRVSymbolsView.setItemAnimator(null)
+        mRVSymbolsView.addItemDecoration(dividerDecoration)
         val layoutParams2 = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
         mRVSymbolsView.layoutParams = layoutParams2
         val root = android.widget.LinearLayout(context).apply {
@@ -210,19 +226,8 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
             } else {
                 ImeDataRepository.phrases().map { line -> Clipboard(line.content) }.toMutableList()
             }
-        val manager =  when (AppPrefs.getInstance().clipboard.clipboardLayoutCompact.getValue()){
-            ClipboardLayoutMode.ListView ->  LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
-            ClipboardLayoutMode.GridView -> CustomGridLayoutManager(context, 2)
-            ClipboardLayoutMode.FlexboxView -> {
-                calculateColumn(copyContents)
-                CustomGridLayoutManager(context, 6).apply {
-                    spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-                        override fun getSpanSize(i: Int) = mHashMapSymbols[i] ?: 1
-                    }
-                }
-            }
-        }
-        mRVSymbolsView.setLayoutManager(manager)
+        mRVSymbolsView.layoutManager =
+            LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         mRVSymbolsView.visibility = if (copyContents.isEmpty()) View.GONE else View.VISIBLE
         mTVLable?.visibility = if (copyContents.isEmpty()) View.VISIBLE else View.GONE
         if(copyContents.isEmpty()){
@@ -235,6 +240,11 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
                 View.OnClickListener { ImeDataRepository.retry() } else null)
             mTVLable?.isClickable = ImeDataRepository.loadState.value == ImeDataRepository.LoadState.Failed
         }
+        val clipboardSignature = "${item.name}/${copyContents.size}"
+        if (clipboardSignature != lastClipboardLogSignature) {
+            lastClipboardLogSignature = clipboardSignature
+            KeyboardOpLog.record("clipboard_open", "mode" to item.name, "count" to copyContents.size)
+        }
         val adapter = ClipBoardAdapter(context, copyContents,
             if (item == SkbMenuMode.ClipBoard) ::showSplit else null)
         mRVSymbolsView.setAdapter(null)
@@ -242,8 +252,8 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
             inputView.pasteClipboardText(copyContents[position].content)
             KeyboardManager.instance.switchKeyboard()
         }
-        mRVSymbolsView.setOnItemLongClickListener { itemView: View?, position: Int ->
-            showItemMenu(position, copyContents, itemView)
+        mRVSymbolsView.setOnItemLongClickListener { _: View?, position: Int ->
+            showItemMenu(position, copyContents)
         }
         mRVSymbolsView.setSwipeMenuCreator{ _: SwipeMenu, rightMenu: SwipeMenu, position: Int ->
             val topItem = SwipeMenuItem(mContext).apply {
@@ -281,9 +291,9 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         mRVSymbolsView.setAdapter(adapter)
     }
 
-    /** 长按条目：Flyme 搜狗式圆角动作卡，贴着被长按的条目上方或下方展开。 */
+    /** 长按条目：搜狗式圆角动作卡，在剪贴板面板中央展开。 */
     private val actionMenu by lazy { ClipboardActionMenu(context, inputView) }
-    private fun showItemMenu(position: Int, datas: MutableList<Clipboard>, anchor: View?) {
+    private fun showItemMenu(position: Int, datas: MutableList<Clipboard>) {
         if (actionSaving) return
         dismissItemMenu()
         val data = datas.getOrNull(position) ?: return
@@ -303,18 +313,22 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
                 ImeDataRepository.mutate { phraseDao().deleteByContent(data.content) }
             }
         }
-        showActionPopup(actions, anchor = anchor)
+        KeyboardOpLog.record(
+            "clipboard_menu",
+            "mode" to itemMode?.name,
+            "position" to position,
+            "actions" to actions.joinToString(",") { it.first },
+        )
+        showActionPopup(actions)
     }
 
     private fun showActionPopup(
         actions: List<Pair<String, () -> Unit>>,
         message: String? = null,
-        anchor: View? = null,
     ) {
-        actionMenu.show(actions, message, anchor)
+        actionMenu.show(actions, message)
     }
 
-    private val mHashMapSymbols = HashMap<Int, Int>() //候选词索引列数对应表
     private fun dismissItemMenu() {
         actionMenu.dismiss()
     }
@@ -329,6 +343,7 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
 
     private fun showSplit(content: String) {
         if (content.isEmpty()) return
+        KeyboardOpLog.record("clipboard_action", "action" to "split")
         dismissItemMenu()
         navigationGeneration++
         actionStatus.visibility = View.GONE
@@ -362,12 +377,14 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
 
     fun requestClearHistory() {
         if (!canClearHistory) return
+        KeyboardOpLog.record("clipboard_action", "action" to "clear_request")
         showActionPopup(listOf(context.getString(R.string.cancel) to {},
             context.getString(R.string.clipboard_clear_history) to ::clearHistory), context.getString(R.string.clipboard_clear_confirm))
     }
 
     private fun clearHistory() {
         if (!canClearHistory) return
+        KeyboardOpLog.record("clipboard_action", "action" to "clear")
         actionSaving = true
         val generation = navigationGeneration
         actionStatus.setText(R.string.clipboard_clearing)
@@ -399,6 +416,7 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
 
     private fun moveToPhrases(content: String) {
         if (actionSaving) return
+        KeyboardOpLog.record("clipboard_action", "action" to "move_to_phrases")
         actionSaving = true
         val generation = navigationGeneration
         actionStatus.setText(R.string.clipboard_moving_to_phrases)
@@ -423,30 +441,11 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
 
     private fun togglePin(content: String) = ImeDataRepository.mutate {
         val current = clipboardDao().getByContent(content) ?: return@mutate
+        KeyboardOpLog.record(
+            "clipboard_action",
+            "action" to if (current.isKeep == 1) "unpin" else "pin",
+        )
         clipboardDao().update(current.copy(isKeep = 1 - current.isKeep))
-    }
-    private fun calculateColumn(data : MutableList<Clipboard>) {
-        mHashMapSymbols.clear()
-        val itemWidth = instance.skbWidth/6 - dp(10)
-        var mCurrentColumn = 0
-        val contents = data.map { it.content }
-        contents.forEachIndexed { position, candidate ->
-            var count = getSymbolsCount(candidate, itemWidth)
-            var nextCount = 0
-            if (contents.size > position + 1) {
-                val nextCandidate = contents[position + 1]
-                nextCount = getSymbolsCount(nextCandidate, itemWidth)
-            }
-            mCurrentColumn = if (mCurrentColumn + count + nextCount > 6) {
-                count = 6 - mCurrentColumn
-                0
-            } else  (mCurrentColumn + count) % 6
-            mHashMapSymbols[position] = count
-        }
-    }
-
-    private fun getSymbolsCount(data: String, itemWidth:Int): Int {
-        return if (!TextUtils.isEmpty(data)) ceil(mPaint.measureText(data).div(itemWidth)).toInt() else 0
     }
     fun getMenuMode():SkbMenuMode? {
        return itemMode

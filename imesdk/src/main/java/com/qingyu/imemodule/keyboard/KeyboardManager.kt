@@ -20,6 +20,7 @@ import com.qingyu.imemodule.prefs.AppPrefs
 import com.qingyu.imemodule.service.DecodingInfo
 import com.qingyu.imemodule.singleton.EnvironmentSingleton
 import com.qingyu.imemodule.utils.KeyboardLoaderUtil
+import com.qingyu.imemodule.utils.KeyboardOpLog
 
 /**
  * 键盘显示管理类
@@ -51,12 +52,17 @@ class KeyboardManager {
     }
 
     fun clearKeyboard() {
+        KeyboardOpLog.record(
+            "keyboard_clear",
+            "current" to if (::mCurrentKeyboardName.isInitialized) mCurrentKeyboardName.name else "none",
+        )
         keyboards.clear()
         if (::mInputView.isInitialized) mInputView.initView(mInputView.context)
     }
 
     fun rebuildForConfiguration() {
         if (!::mCurrentKeyboardName.isInitialized) return
+        KeyboardOpLog.record("keyboard_rebuild", "current" to mCurrentKeyboardName.name)
         val type = mCurrentKeyboardName
         val clipboardMode = (currentContainer as? ClipBoardContainer)?.getMenuMode()
         val symbolMode = (currentContainer as? SymbolContainer)?.getMenuMode()
@@ -98,6 +104,17 @@ class KeyboardManager {
             mInputView.hasSelection = false
         }
         val env = EnvironmentSingleton.instance
+        KeyboardOpLog.record(
+            "keyboard_switch",
+            "from" to if (::mCurrentKeyboardName.isInitialized) mCurrentKeyboardName.name else "none",
+            "to" to keyboardName.name,
+            "layout" to InputModeSwitcher.skbLayout,
+            "float" to env.keyboardModeFloat,
+            "onehand" to AppPrefs.getInstance().keyboardSetting.oneHandedModSwitch.getValue(),
+            "hwFull" to env.handwritingFullScreenActive,
+            "skbW" to env.skbWidth,
+            "skbH" to env.skbHeight,
+        )
         val expanded = keyboardName == KeyboardType.HANDWRITING &&
             AppPrefs.getInstance().handwriting.fullScreen.getValue()
         if (env.handwritingFullScreenActive != expanded) {
@@ -155,6 +172,7 @@ class KeyboardManager {
     }
 
     fun setHandwritingFullScreen(enabled: Boolean) {
+        KeyboardOpLog.record("handwriting_fullscreen", "enabled" to enabled)
         AppPrefs.getInstance().handwriting.fullScreen.setValue(enabled)
         switchKeyboard(KeyboardType.HANDWRITING)
         mInputView.updateCandidateBar()

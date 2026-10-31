@@ -173,20 +173,29 @@ class KeyboardLoaderUtil private constructor() {
                     rows.add(keyBeans)
                 } else {
                     val rowF = 0.25f
-                    var handwritingKey = createHandwritingKey(keys[1][0]) // 删除键，右列上
-                    handwritingKey.mLeftF = 0.815f
-                    handwritingKey.heightF = rowF
+                    // 右侧删除/符号竖列必须和底排最后一键同宽、同左边（搜狗半屏手写实测）：
+                    // 旧写法固定 0.815/0.18，比底排末键宽 35px、左移 30px，输入时整列看着错位。
+                    val bottomWidths = listOf(0.147f, 0.116f, 0.175f, 0.225f, 0.175f, 0.147f)
+                    val rightColumnLeft = 0.005f + bottomWidths.dropLast(1).sum()
+                    val rightColumnWidth = bottomWidths.last()
+                    var handwritingKey = createHandwritingKey(keys[1][0]).apply {
+                        mLeftF = rightColumnLeft
+                        widthF = rightColumnWidth
+                        heightF = rowF
+                    }
                     keyBeans.add(handwritingKey)
                     rows.add(keyBeans)
                     keyBeans = LinkedList()
-                    handwritingKey = createHandwritingKey(keys[0][0]) // 符号占位，右列下
-                    handwritingKey.mLeftF = 0.815f
-                    handwritingKey.heightF = 2f * rowF
+                    handwritingKey = createHandwritingKey(keys[0][0]).apply {
+                        mLeftF = rightColumnLeft
+                        widthF = rightColumnWidth
+                        heightF = 2f * rowF
+                    }
                     keyBeans.add(handwritingKey)
                     rows.add(keyBeans)
                     keyBeans = lastRows(skbValue)
                     keyBeans.add(2, handWritingFullScreenToggleKey())
-                    assignWidths(keyBeans, listOf(0.147f, 0.116f, 0.175f, 0.225f, 0.175f, 0.147f))
+                    assignWidths(keyBeans, bottomWidths)
                     rows.add(keyBeans)
                 }
             }
@@ -359,11 +368,11 @@ class KeyboardLoaderUtil private constructor() {
     }
 
     // 键盘最后一行（各键盘统一，数字键盘稍微不同）
-    /** 全/半屏切换键：展开态显示「半/全屏」，收起态显示「全/半屏」 */
+    /** 全/半屏切换键：主字显示当前形态，小字显示切换目标（搜狗半屏为「半/全屏」）。 */
     private fun handWritingFullScreenToggleKey(): SoftKey {
         val expanded = AppPrefs.getInstance().handwriting.fullScreen.getValue()
         return SoftKey(code = InputModeSwitcher.USER_KEYCODE_HW_FULLSCREEN,
-            label = if (expanded) "半" else "全", labelSmall = if (expanded) "/全屏" else "/半屏")
+            label = if (expanded) "全" else "半", labelSmall = if (expanded) "/半屏" else "/全屏")
     }
 
     /** 自画布底部向上锚定行高，避免画布实际高度与预估不一致时整行掉到屏幕外 */
