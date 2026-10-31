@@ -32,6 +32,11 @@ class CrashHandler private constructor() : Thread.UncaughtExceptionHandler {
     }
 
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
+        KeyboardOpLog.record(
+            "uncaught",
+            "thread" to thread.name,
+            "error" to throwable.javaClass.name,
+        )
         if (!handleException(throwable) && mDefaultHandler != null) {
             mDefaultHandler!!.uncaughtException(thread, throwable)
         } else {

@@ -27,6 +27,7 @@ import com.qingyu.imemodule.prefs.AppPrefs
 import com.qingyu.imemodule.singleton.EnvironmentSingleton
 import com.qingyu.imemodule.ui.navigation.navigateWithSettingsMotion
 import com.qingyu.imemodule.utils.KeyboardLoaderUtil
+import com.qingyu.imemodule.utils.KeyboardOpLog
 import com.qingyu.imemodule.view.widget.applyNavBarInsetsBottomPadding
 import com.qingyu.inputmethod.core.Kernel
 import splitties.dimensions.dp
@@ -195,7 +196,13 @@ class ToolboxFragment : Fragment() {
 
         fun onItemClicked(position: Int) {
             if (position == RecyclerView.NO_POSITION) return
-            data[position].onClick()
+            val item = data[position]
+            KeyboardOpLog.record(
+                "toolbox_item",
+                "title" to this@ToolboxFragment.requireContext().getString(item.title),
+                "checked" to item.isChecked?.invoke(),
+            )
+            item.onClick()
             refreshToggleState(position)
         }
     }
