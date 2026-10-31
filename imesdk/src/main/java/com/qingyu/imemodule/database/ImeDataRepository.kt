@@ -6,6 +6,7 @@ import android.widget.Toast
 import com.qingyu.imemodule.R
 import com.qingyu.imemodule.application.Launcher
 import com.qingyu.imemodule.database.entry.Clipboard
+import com.qingyu.imemodule.utils.KeyboardOpLog
 import com.qingyu.imemodule.database.entry.Phrase
 import com.qingyu.imemodule.database.entry.SideSymbol
 import com.qingyu.imemodule.database.entry.SkbFun
@@ -139,6 +140,7 @@ object ImeDataRepository {
         }
 
     private fun reportFailure(message: Int) {
+        KeyboardOpLog.record("data_load_failed")
         main.post { Toast.makeText(Launcher.instance.context, message, Toast.LENGTH_LONG).show() }
     }
 

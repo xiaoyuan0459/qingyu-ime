@@ -53,6 +53,7 @@ import com.qingyu.imemodule.utils.DevicesUtils
 import com.qingyu.imemodule.utils.InputMethodUtil
 import com.qingyu.imemodule.utils.AppUtil
 import com.qingyu.imemodule.utils.KeyboardLoaderUtil
+import com.qingyu.imemodule.utils.KeyboardOpLog
 import com.qingyu.imemodule.utils.LogUtil
 import com.qingyu.imemodule.utils.StringUtils
 import com.qingyu.imemodule.view.CandidatesBar
@@ -127,6 +128,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         set(value) {
             if (field == value) return
             field = value
+            KeyboardOpLog.record("selection_state", "active" to value)
             (KeyboardManager.instance.currentContainer as? InputBaseContainer)?.updateStates()
         }
     // 记录删除内容
@@ -232,6 +234,15 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             if (env.keyboardModeFloat) RelativeLayout.TRUE else 0,
         )
         mSkbRoot.layoutParams = skbRootParams
+        KeyboardOpLog.record(
+            "input_view_init",
+            "float" to env.keyboardModeFloat,
+            "onehand" to oneHandedModSwitch,
+            "skbW" to env.skbWidth,
+            "skbH" to env.skbHeight,
+            "rootW" to if (env.keyboardModeFloat) floatPanelWidth else "match",
+            "fullHw" to env.handwritingFullScreenActive,
+        )
         applyHandwritingFullScreenLayout(env)
         if (env.keyboardModeFloat) {
             val isLand = env.isLandscape
@@ -372,6 +383,12 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                KeyboardOpLog.record(
+                    "float_drag",
+                    "right" to rightPaddingValue,
+                    "bottom" to bottomPaddingValue,
+                    "float" to EnvironmentSingleton.instance.keyboardModeFloat,
+                )
                 mRightPaddingKey.setValue(rightPaddingValue)
                 mBottomPaddingKey.setValue(bottomPaddingValue)
             }
@@ -653,6 +670,25 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
 
     private fun processUserDefKey(keyCode: Int, label: String) {
+        val textEditAction = when (keyCode) {
+            InputModeSwitcher.USER_KEYCODE_COPY -> "copy"
+            InputModeSwitcher.USER_KEYCODE_CUT -> "cut"
+            InputModeSwitcher.USER_KEYCODE_PASTE -> "paste"
+            InputModeSwitcher.USER_KEYCODE_SELECT_MODE -> "select_mode"
+            InputModeSwitcher.USER_KEYCODE_SELECT_ALL -> "select_all"
+            InputModeSwitcher.USER_KEYCODE_MOVE_START -> "move_start"
+            InputModeSwitcher.USER_KEYCODE_MOVE_END -> "move_end"
+            InputModeSwitcher.USER_KEYCODE_CURSOR_DIRECTION -> "cursor_direction"
+            else -> null
+        }
+        if (textEditAction != null) {
+            KeyboardOpLog.record(
+                "text_edit",
+                "action" to textEditAction,
+                "hasSelection" to hasSelection,
+                "enabled" to isTextEditActionEnabled(keyCode),
+            )
+        }
         if (!isTextEditActionEnabled(keyCode)) return
         // 必须在「有候选先选词」之前求值：选词会清空 keyRecordStack，
         // 之后 isEngineFinish 恒真，组合态标点就再也走不到分词分支了。
@@ -937,6 +973,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     /** 工具箱「反馈参数」：先结算当前组合，再一次性把参数块插入宿主输入框。 */
     fun insertFeedbackInfo(info: String) {
         if (UserDataManager.isInputPaused || info.isBlank()) return
+        KeyboardOpLog.record("feedback_info_insert")
         if (isAddPhrases) {
             mAddPhrasesLayout.commitText(info)
             return
@@ -949,6 +986,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     /** Explicit clipboard paste keeps the original text, including paired punctuation. */
     fun pasteClipboardText(text: String) {
         if (UserDataManager.isInputPaused || text.isEmpty()) return
+        KeyboardOpLog.record("clipboard_paste")
         if (!DecodingInfo.isAssociate && !DecodingInfo.isCandidatesEmpty &&
             (InputModeSwitcher.isChinese || InputModeSwitcher.isEnglish)) chooseAndUpdate()
         if (isAddPhrases) mAddPhrasesLayout.commitText(text) else service.commitText(text)
@@ -1043,6 +1081,13 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         // 设置页里改的悬浮／单手／键盘高度要在这里补算一次；几何变了就丢弃旧缓存键盘，
         // 否则新候选栏按窄宽度布局、旧键矩形仍是全宽，输入时整块错位。
         val layoutChanged = EnvironmentSingleton.instance.refreshLayoutIfChanged()
+        KeyboardOpLog.record(
+            "input_layout",
+            "reset" to reset,
+            "changed" to layoutChanged,
+            "restarting" to restarting,
+            "float" to EnvironmentSingleton.instance.keyboardModeFloat,
+        )
         if (reset) {
             KeyboardLoaderUtil.instance.syncLayoutPrefs()
             // 设置页在另一个进程，模糊音/拼写纠错这类引擎开关得在这里补一次同步，

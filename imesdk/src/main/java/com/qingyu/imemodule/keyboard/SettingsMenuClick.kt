@@ -12,6 +12,7 @@ import com.qingyu.imemodule.singleton.EnvironmentSingleton
 import com.qingyu.imemodule.utils.AppUtil
 import com.qingyu.imemodule.utils.FeedbackInfo
 import com.qingyu.imemodule.utils.KeyboardLoaderUtil
+import com.qingyu.imemodule.utils.KeyboardOpLog
 import com.qingyu.imemodule.keyboard.container.CandidatesContainer
 import com.qingyu.imemodule.keyboard.container.ClipBoardContainer
 import com.qingyu.imemodule.keyboard.container.SettingsContainer
@@ -19,6 +20,7 @@ import com.qingyu.imemodule.keyboard.container.SymbolContainer
 import com.qingyu.inputmethod.core.Kernel
 
 fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
+    KeyboardOpLog.record("menu", "mode" to skbMenuMode.name)
     when (skbMenuMode) {
         SkbMenuMode.Emojicon, SkbMenuMode.Emoticon -> {
             val symbolType = if(skbMenuMode == SkbMenuMode.Emoticon) SymbolMode.Emoticon else SymbolMode.Emojicon

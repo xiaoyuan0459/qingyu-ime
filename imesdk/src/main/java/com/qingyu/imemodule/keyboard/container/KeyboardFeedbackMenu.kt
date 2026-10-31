@@ -17,7 +17,9 @@ import com.qingyu.imemodule.data.theme.ThemeManager.activeTheme
 import com.qingyu.imemodule.keyboard.InputView
 import com.qingyu.imemodule.prefs.AppPrefs
 import com.qingyu.imemodule.prefs.InputFeedbacks
+import com.qingyu.imemodule.prefs.SoundGear
 import com.qingyu.imemodule.prefs.VibrationGear
+import com.qingyu.imemodule.utils.KeyboardOpLog
 import splitties.dimensions.dp
 
 /**
@@ -32,20 +34,6 @@ internal class KeyboardFeedbackMenu(private val inputView: InputView) {
 
     private val context: Context = inputView.context
     private var overlay: FrameLayout? = null
-
-    private val soundValues = intArrayOf(0, 10, 20, 30, 40)
-
-    /**
-     * 设置页音量滑杆是 0..40 连续值，旧弹卡还写过 0..100；分段只展示最接近的一挡。
-     * 阈值与 [InputFeedbacks.soundEffect] 的「系统 / 无 / 音量」分段保持一致。
-     */
-    private fun soundGearIndex(value: Int): Int = when {
-        value < 5 -> 0
-        value < 15 -> 1
-        value < 25 -> 2
-        value < 35 -> 3
-        else -> 4
-    }
 
     private val soundLabels by lazy { context.resources.getStringArray(R.array.sound_labels) }
     private val vibrationLabels by lazy { context.resources.getStringArray(R.array.vibrate_labels) }
@@ -69,9 +57,10 @@ internal class KeyboardFeedbackMenu(private val inputView: InputView) {
             addView(gearRow(
                 context.getString(R.string.key_sound_volume),
                 soundLabels.toList(),
-                soundGearIndex(prefs.soundOnKeyPress.getValue()),
+                SoundGear.indexOf(prefs.soundOnKeyPress.getValue()),
             ) { index ->
-                prefs.soundOnKeyPress.setValue(soundValues[index])
+                prefs.soundOnKeyPress.setValue(SoundGear.VALUES[index])
+                KeyboardOpLog.record("feedback_panel", "soundGear" to index)
                 InputFeedbacks.soundEffect(InputFeedbacks.SoundEffect.Standard)
             })
             addView(gearRow(
@@ -80,6 +69,7 @@ internal class KeyboardFeedbackMenu(private val inputView: InputView) {
                 vibrationGear,
             ) { index ->
                 prefs.vibrationAmplitude.setValue(index)
+                KeyboardOpLog.record("feedback_panel", "vibrationGear" to index)
                 // 立即给一次该挡位的触感，听感/手感即所见。
                 InputFeedbacks.hapticFeedback(host, InputFeedbacks.HapticEvent.Key)
             })
