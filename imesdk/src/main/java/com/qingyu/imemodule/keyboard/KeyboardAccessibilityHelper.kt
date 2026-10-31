@@ -38,6 +38,11 @@ class KeyboardAccessibilityHelper(
     }
 
     private fun label(key: SoftKey): String {
+        if (key.code == InputModeSwitcher.USER_KEYCODE_SELECT_MODE) {
+            return host.context.getString(
+                if (selecting()) R.string.text_edit_cancel_select else R.string.text_edit_select_mode
+            )
+        }
         KeyboardAccessibilityLabels.resFor(key.code)?.let { return host.context.getString(it) }
         return when (key.code) {
             InputModeSwitcher.USER_KEYCODE_EMOJI,

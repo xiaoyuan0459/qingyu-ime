@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.qingyu.imemodule.R
 import com.qingyu.imemodule.data.theme.ThemeManager
 import com.qingyu.imemodule.databinding.SdkItemToolboxBinding
+import com.qingyu.imemodule.keyboard.KeyboardManager
 import com.qingyu.imemodule.prefs.AppPrefs
 import com.qingyu.imemodule.singleton.EnvironmentSingleton
 import com.qingyu.imemodule.ui.navigation.navigateWithSettingsMotion
@@ -121,6 +122,7 @@ class ToolboxFragment : Fragment() {
                 prefs.keyboardSetting.oneHandedModSwitch.setValue(!prefs.keyboardSetting.oneHandedModSwitch.getValue())
                 EnvironmentSingleton.instance.initData()
                 KeyboardLoaderUtil.instance.clearKeyboardMap()
+                KeyboardManager.instance.rebuildForConfiguration()
             },
             toggle(R.string.keyboard_menu_float, R.drawable.ic_menu_float,
                 checked = { EnvironmentSingleton.instance.keyboardModeFloat },
@@ -129,6 +131,7 @@ class ToolboxFragment : Fragment() {
                 environment.keyboardModeFloat = !environment.keyboardModeFloat
                 environment.initData()
                 KeyboardLoaderUtil.instance.clearKeyboardMap()
+                KeyboardManager.instance.rebuildForConfiguration()
             },
             toggle(R.string.keyboard_mnemonic_show, R.drawable.ic_menu_mnemonic,
                 checked = { prefs.keyboardSetting.keyboardMnemonic.getValue() },

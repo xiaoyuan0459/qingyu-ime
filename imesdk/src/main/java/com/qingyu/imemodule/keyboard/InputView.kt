@@ -221,6 +221,17 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         mLlKeyboardBottomHolder.removeAllViews()
         mLlKeyboardBottomHolder.layoutParams.width = env.skbWidth
         mInputKeyboardContainer.layoutParams.width = env.inputAreaWidth
+        // 浮窗只占键盘本身：根布局跟随 skbWidth 并靠右，右侧留白必须透出宿主内容，
+        // 不能再用全屏宽根布局的底色铺满。
+        val skbRootParams = mSkbRoot.layoutParams as RelativeLayout.LayoutParams
+        val floatPanelWidth = env.skbWidth + if (oneHandedModSwitch) env.holderWidth else 0
+        skbRootParams.width =
+            if (env.keyboardModeFloat) floatPanelWidth else RelativeLayout.LayoutParams.MATCH_PARENT
+        skbRootParams.addRule(
+            RelativeLayout.ALIGN_PARENT_RIGHT,
+            if (env.keyboardModeFloat) RelativeLayout.TRUE else 0,
+        )
+        mSkbRoot.layoutParams = skbRootParams
         applyHandwritingFullScreenLayout(env)
         if (env.keyboardModeFloat) {
             val isLand = env.isLandscape
@@ -923,6 +934,18 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         else service.commitText(StringUtils.converted2FlowerTypeface(text))
     }
 
+    /** 工具箱「反馈参数」：先结算当前组合，再一次性把参数块插入宿主输入框。 */
+    fun insertFeedbackInfo(info: String) {
+        if (UserDataManager.isInputPaused || info.isBlank()) return
+        if (isAddPhrases) {
+            mAddPhrasesLayout.commitText(info)
+            return
+        }
+        if (!DecodingInfo.isCandidatesEmpty && !DecodingInfo.isAssociate) chooseAndUpdate()
+        service.commitText(info)
+        resetToIdleState()
+    }
+
     /** Explicit clipboard paste keeps the original text, including paired punctuation. */
     fun pasteClipboardText(text: String) {
         if (UserDataManager.isInputPaused || text.isEmpty()) return
@@ -1017,11 +1040,17 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             service.finishComposingText()
         }
         if (!UserDataManager.isInputPaused) InputModeSwitcher.requestInputWithSkb(editorInfo)
+        // 设置页里改的悬浮／单手／键盘高度要在这里补算一次；几何变了就丢弃旧缓存键盘，
+        // 否则新候选栏按窄宽度布局、旧键矩形仍是全宽，输入时整块错位。
+        val layoutChanged = EnvironmentSingleton.instance.refreshLayoutIfChanged()
         if (reset) {
             KeyboardLoaderUtil.instance.syncLayoutPrefs()
             // 设置页在另一个进程，模糊音/拼写纠错这类引擎开关得在这里补一次同步，
             // 否则改完要重启输入法进程才生效。
             Kernel.nativeUpdateImeOption()
+        }
+        if (reset || layoutChanged) {
+            if (layoutChanged) KeyboardManager.instance.clearKeyboard()
             KeyboardManager.instance.switchKeyboard()
         }
         chinesePrediction = nextEditor.allowsSuggestions && appPrefs.input.chinesePrediction.getValue()

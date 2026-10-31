@@ -35,6 +35,7 @@ val menuSkbFunsPreset: Map<SkbMenuMode, SkbFunItem> = hashMapOf(
     SkbMenuMode.ClearClipBoard to SkbFunItem(Launcher.instance.context.getString(R.string.clipboard_clear), R.drawable.ic_menu_delete, SkbMenuMode.ClearClipBoard),
     SkbMenuMode.Emoticon to SkbFunItem(Launcher.instance.context.getString(R.string.emoticons), R.drawable.ic_menu_emoji_emoticons, SkbMenuMode.Emoticon),
     SkbMenuMode.AddPhrases to SkbFunItem(Launcher.instance.context.getString(R.string.add_phrases), R.drawable.ic_menu_plus, SkbMenuMode.AddPhrases),
+    SkbMenuMode.FeedbackInfo to SkbFunItem(Launcher.instance.context.getString(R.string.feedback_info), R.drawable.ic_menu_feedback, SkbMenuMode.FeedbackInfo),
     SkbMenuMode.TextEdit to SkbFunItem(Launcher.instance.context.getString(R.string.menu_text_edit), R.drawable.ic_menu_cursor_icon, SkbMenuMode.TextEdit),
     // 键盘手写直达：点一下切到手写布局，和「切换键盘」里的手写是同一个模式
     SkbMenuMode.PinyinHandWriting to SkbFunItem(Launcher.instance.context.getString(R.string.keyboard_handwriting_entry), R.drawable.selece_input_mode_handwriting, SkbMenuMode.PinyinHandWriting),

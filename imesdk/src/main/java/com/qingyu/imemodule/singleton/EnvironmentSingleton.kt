@@ -56,9 +56,21 @@ class EnvironmentSingleton private constructor() {
     var keyYMargin = 0 //键盘按键垂直间距
     // 按键 + 候选词+拼音总高度，值是相对于竖屏宽度，横屏高度。
     private var keyboardHeightRatio = 0f
+    private var layoutSignature = ""
 
     init {
         initData()
+    }
+
+    /**
+     * 设置页与键盘不在同一次可见周期里时，悬浮／单手等偏好可能已经改掉，
+     * 但本进程里缓存的键盘几何还没重算。重新读取并报告几何是否变化，
+     * 让输入视图决定要不要重建缓存键盘。
+     */
+    fun refreshLayoutIfChanged(): Boolean {
+        val previous = layoutSignature
+        initData()
+        return previous != layoutSignature
     }
 
     fun initData(context: Context = Launcher.instance.context) {
@@ -132,6 +144,10 @@ class EnvironmentSingleton private constructor() {
                 "candH=$heightForCandidates compH=$heightForcomposing areaH=$heightForCandidatesArea " +
                 "ratio=${AppPrefs.getInstance().internal.keyboardHeightRatio.getValue()} " +
                 "hwFull=$handwritingFullScreenActive float=$keyboardModeFloat land=$isLandscape")
+        layoutSignature = "w=$mScreenWidth h=$mScreenHeight land=$isLandscape float=$keyboardModeFloat " +
+                "hwFull=$handwritingFullScreenActive area=$inputAreaWidth skb=${skbWidth}x$skbHeight " +
+                "normal=$normalSkbHeight holder=$holderWidth candArea=$heightForCandidatesArea " +
+                "move=$heightForKeyboardMove key=${keyTextSize}x$keyTextSmallSize"
     }
 
     var keyBoardHeightRatio: Float
