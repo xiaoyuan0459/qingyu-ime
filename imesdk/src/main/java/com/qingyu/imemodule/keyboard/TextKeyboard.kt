@@ -326,9 +326,8 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
         if (inlineSuffix) {
             // 「全/半屏」也是功能帽：主字跟随功能帽字号，整行再按可用宽度等比收缩，
             // 大字体或悬浮窄键下不会把「全」画得比字母还大。
-            mPaint.color = ColorUtils.setAlphaComponent(
-                textColor, (Color.alpha(textColor) * 0.5f).toInt()
-            )
+            // 主字是当前形态，保持键面主色；副字才是切换目标，按功能帽浅色绘制。
+            mPaint.color = textColor
             mPaint.setTypeface(Typeface.DEFAULT)
             val mainSize = mNormalKeyTextSize * FUNCTIONAL_CAP_TEXT_RATIO
             val suffixSize = mNormalKeyTextSizeSmall.toFloat()
@@ -348,6 +347,9 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
             val baseline = (softKey.mTop + softKey.mBottom) / 2.0f + (mFmi.bottom - mFmi.top)
             mPaint.textSize = mainSize * scale
             canvas.drawText(keyLabel, startX, baseline, mPaint)
+            mPaint.color = ColorUtils.setAlphaComponent(
+                textColor, (Color.alpha(textColor) * LANGUAGE_SUB_ALPHA).toInt()
+            )
             mPaint.textSize = suffixSize * scale
             canvas.drawText(keyLabelSmall, startX + mainWidth, baseline, mPaint)
         } else if (drawLanguageLabel(canvas, softKey)) {
