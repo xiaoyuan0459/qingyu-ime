@@ -30,6 +30,7 @@ replay_pid*.log
 /.graphflow-cache/
 /graphflow-out/
 /.qoder-credits/
+/.qoder/
 /.workbuddy/
 /.workbuddy-ai/
 /.zcode/
