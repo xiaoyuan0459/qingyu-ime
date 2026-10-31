@@ -42,7 +42,7 @@ class ClipBoardAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SymbolHolder {
         val container = RelativeLayout(mContext)
-        container.minimumHeight = mContext.dp(48)
+        container.minimumHeight = mContext.dp(52)
         container.gravity = Gravity.CENTER_VERTICAL
         container.layoutParams = RecyclerView.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -52,10 +52,11 @@ class ClipBoardAdapter(
 
         val content = EmojiTextView(mContext).apply {
             id = R.id.clipboard_adapter_content
-            maxLines = 3
+            // 搜狗长文本最多两行，超出省略，行高不会被一条长文本撑得过厚。
+            maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
             gravity = Gravity.START or Gravity.CENTER_VERTICAL
-            setPadding(mContext.dp(16), mContext.dp(10), mContext.dp(16), mContext.dp(10))
+            setPadding(mContext.dp(16), mContext.dp(12), mContext.dp(16), mContext.dp(12))
             layoutParams = RelativeLayout.LayoutParams(
                 RelativeLayout.LayoutParams.MATCH_PARENT,
                 RelativeLayout.LayoutParams.WRAP_CONTENT,
@@ -73,23 +74,8 @@ class ClipBoardAdapter(
                 setMargins(0, mContext.dp(6), mContext.dp(12), 0)
             }
         }
-        val divider = View(mContext).apply {
-            setBackgroundColor(
-                androidx.core.graphics.ColorUtils.setAlphaComponent(
-                    textColor,
-                    (android.graphics.Color.alpha(textColor) * 0.12f).toInt(),
-                )
-            )
-            layoutParams = RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.MATCH_PARENT, 1,
-            ).apply {
-                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE)
-                setMargins(mContext.dp(16), 0, mContext.dp(16), 0)
-            }
-        }
         container.addView(content)
         container.addView(topTips)
-        container.addView(divider)
         return SymbolHolder(container)
     }
 
