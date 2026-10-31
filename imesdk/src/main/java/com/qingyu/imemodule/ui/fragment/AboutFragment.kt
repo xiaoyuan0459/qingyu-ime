@@ -14,6 +14,7 @@ import com.qingyu.imemodule.application.CustomConstant
 import com.qingyu.imemodule.application.Launcher
 import com.qingyu.imemodule.ui.fragment.base.CsPreferenceFragment
 import com.qingyu.imemodule.ui.navigation.navigateWithSettingsMotion
+import com.qingyu.imemodule.utils.KeyboardOpLog
 import com.qingyu.imemodule.utils.TimeUtils
 import com.qingyu.imemodule.utils.addCategory
 import com.qingyu.imemodule.utils.addPreference
@@ -49,6 +50,7 @@ class AboutFragment : CsPreferenceFragment() {
 
     @OptIn(ExperimentalSerializationApi::class)
     fun export(dest: OutputStream) = runCatching {
+        KeyboardOpLog.ensureForExport(Launcher.instance.context)
         val outputDir = File(Launcher.instance.context.filesDir, "crash_logs")
         ZipOutputStream(dest.buffered()).use { zipStream ->
             writeFileTree(outputDir, zipStream)
@@ -112,10 +114,12 @@ class AboutFragment : CsPreferenceFragment() {
 
             addCategory(R.string.app_log) {
                 isIconSpaceReserved = false
-                addPreference(R.string.export_crash_log) {
+                addPreference(R.string.export_crash_log, R.string.export_crash_log_summary) {
                     lifecycleScope.launch {
                         exportTimestamp = System.currentTimeMillis()
-                        exportLauncher.launch("qingyuIme_crash_log${TimeUtils.iso8601UTCDateTime(exportTimestamp)}.zip")
+                        exportLauncher.launch(
+                            "qingyuIme_diagnostics${TimeUtils.iso8601UTCDateTime(exportTimestamp)}.zip"
+                        )
                     }
                 }
             }

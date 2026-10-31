@@ -34,6 +34,7 @@ import com.qingyu.imemodule.prefs.behavior.SkbMenuMode
 import com.qingyu.imemodule.ui.activity.VoicePermissionActivity
 import com.qingyu.imemodule.singleton.EnvironmentSingleton
 import com.qingyu.imemodule.utils.KeyboardLoaderUtil
+import com.qingyu.imemodule.utils.KeyboardOpLog
 import com.qingyu.imemodule.utils.StringUtils
 import com.qingyu.imemodule.utils.isDarkMode
 import com.qingyu.imemodule.view.preference.ManagedPreference
@@ -56,6 +57,7 @@ class ImeService : InputMethodService() {
     private var isHardwareKeyboard = false
     private var isSoftKeyboard = false
     private var clipboardMenuBack = false
+    private var lastInsetsSignature: String? = null
     private lateinit var mInputView: InputView
     private lateinit var mCandidateView: CandidateView
     private val onThemeChangeListener = OnThemeChangeListener { _: Theme? ->
@@ -78,6 +80,7 @@ class ImeService : InputMethodService() {
     }
     override fun onCreate() {
         super.onCreate()
+        KeyboardOpLog.record("ime_create")
         activeService = WeakReference(this)
         HandwritingUploadScheduler.scheduleIfEnabled(this)
         addOnChangedListener(onThemeChangeListener)
@@ -99,6 +102,7 @@ class ImeService : InputMethodService() {
     }
 
     override fun onCreateInputView(): View {
+        KeyboardOpLog.record("input_view_create")
         mInputView = InputView(baseContext, this)
         return mInputView
     }
@@ -128,6 +132,12 @@ class ImeService : InputMethodService() {
         isSoftKeyboard = true
         isHardwareKeyboard = false
         setCandidatesViewShown(false)
+        KeyboardOpLog.record(
+            "input_start",
+            "restarting" to restarting,
+            "inputType" to editorInfo.inputType,
+            "imeOptions" to editorInfo.imeOptions,
+        )
         if (::mInputView.isInitialized) mInputView.onStartInputView(editorInfo, restarting)
     }
 
@@ -225,11 +235,13 @@ class ImeService : InputMethodService() {
     fun cancelVoiceInput() = voice.cancel()
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        KeyboardOpLog.record("finish_input_view", "finishing" to finishingInput)
         voice.cancel(preservePermission = true)
         super.onFinishInputView(finishingInput)
     }
 
     override fun onFinishInput() {
+        KeyboardOpLog.record("finish_input")
         voice.cancel(preservePermission = true)
         super.onFinishInput()
     }
@@ -266,7 +278,16 @@ class ImeService : InputMethodService() {
     private fun applyHandwritingWindowHeight(lp: WindowManager.LayoutParams) {
         val env = EnvironmentSingleton.instance
         val fullScreenHw = env.handwritingFullScreenActive && !env.isLandscape && !env.keyboardModeFloat
-        lp.height = if (fullScreenHw) ViewGroup.LayoutParams.MATCH_PARENT else ViewGroup.LayoutParams.WRAP_CONTENT
+        val target = if (fullScreenHw) ViewGroup.LayoutParams.MATCH_PARENT else ViewGroup.LayoutParams.WRAP_CONTENT
+        if (lp.height != target) {
+            KeyboardOpLog.record(
+                "window_height",
+                "height" to if (target == ViewGroup.LayoutParams.MATCH_PARENT) "match" else "wrap",
+                "float" to env.keyboardModeFloat,
+                "hwFull" to fullScreenHw,
+            )
+        }
+        lp.height = target
     }
 
     override fun onConfigureWindow(win: Window, isFullscreen: Boolean, visible: Boolean) {
@@ -316,6 +337,21 @@ class ImeService : InputMethodService() {
                 } else touchableRegion.setEmpty()
             }
         }
+        val touchable = outInsets.touchableRegion.bounds.toShortString()
+        val signature = "${outInsets.contentTopInsets}/${outInsets.visibleTopInsets}/" +
+            "${outInsets.touchableInsets}/$touchable/${env.keyboardModeFloat}/$handwritingFullScreen"
+        if (signature != lastInsetsSignature) {
+            lastInsetsSignature = signature
+            KeyboardOpLog.record(
+                "insets",
+                "contentTop" to outInsets.contentTopInsets,
+                "visibleTop" to outInsets.visibleTopInsets,
+                "touchableInsets" to outInsets.touchableInsets,
+                "touch" to touchable,
+                "float" to env.keyboardModeFloat,
+                "hwFull" to handwritingFullScreen,
+            )
+        }
     }
 
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
@@ -337,11 +373,13 @@ class ImeService : InputMethodService() {
     }
 
     override fun onWindowShown() {
+        KeyboardOpLog.record("window_shown", "soft" to isSoftKeyboard, "hardware" to isHardwareKeyboard)
         if (isSoftKeyboard && ::mInputView.isInitialized) mInputView.onWindowShown()
         super.onWindowShown()
     }
 
     override fun onWindowHidden() {
+        KeyboardOpLog.record("window_hidden", "soft" to isSoftKeyboard, "hardware" to isHardwareKeyboard)
         clipboardMenuBack = false
         voice.cancel(preservePermission = true)
         if(isSoftKeyboard && ::mInputView.isInitialized) mInputView.onWindowHidden()

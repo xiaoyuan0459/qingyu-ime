@@ -26,6 +26,7 @@ import com.qingyu.imemodule.manager.UserDataManager
 import com.qingyu.imemodule.service.DecodingInfo
 import com.qingyu.imemodule.singleton.EnvironmentSingleton
 import com.qingyu.imemodule.utils.DevicesUtils
+import com.qingyu.imemodule.utils.KeyboardOpLog
 import com.qingyu.imemodule.view.CandidateActions
 import com.qingyu.inputmethod.core.RimeSession
 import kotlinx.coroutines.CoroutineScope
@@ -43,11 +44,11 @@ import splitties.dimensions.dp
 /** Display projection over the original engine list: filtering never renumbers engine candidates. */
 @SuppressLint("ViewConstructor")
 class CandidatesContainer(context: Context, inputView: InputView) : BaseContainer(context, inputView) {
-    // 展开态顶栏带原地换成贴左缘注音标签（参考展开面板顶带），候选行不再重复一份
+    // 展开态顶栏让位，候选面板接管「候选栏+键盘区」的整块高度。
     override val occupiesCandidateArea: Boolean get() = true
-    // 展开态窗口与键盘空闲态等高：顶带（注音标签）+ 面板＝键盘区，
-    // 悬浮气泡在展开时隐藏，不再预留空带（参考输入法展开态即此形态）。
-    override val contentHeight: Int get() = EnvironmentSingleton.instance.skbHeight
+    // 注音继续复用键盘上方的打字标签，标签下沿贴面板上沿；面板总高与键盘态一致。
+    override val contentHeight: Int get() = EnvironmentSingleton.instance.skbHeight +
+        EnvironmentSingleton.instance.heightForCandidates
     private val state = inputView.candidatePanelState
     private val theme = ThemeManager.activeTheme
     private val grid = RecyclerView(context)
@@ -63,8 +64,9 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
     }
     private val adapter = CandidatesAdapter(context)
     private val manager = GridLayoutManager(context, 4)
-    private val railWidth = maxOf(dp(52), (EnvironmentSingleton.instance.skbWidth * .17f).toInt())
-    private val leftWidth = maxOf(dp(52), (EnvironmentSingleton.instance.skbWidth * .19f).toInt())
+    // 三栏比例对齐搜狗展开面板：左列、右列各约 17.5%，候选网格约 65%。
+    private val railWidth = maxOf(dp(52), (EnvironmentSingleton.instance.skbWidth * .175f).toInt())
+    private val leftWidth = maxOf(dp(52), (EnvironmentSingleton.instance.skbWidth * .175f).toInt())
     private val actions = CandidateActions(context, ::returnToKeyboard, ::delete, ::retype,
         { state.strokeMode = !state.strokeMode; state.clearFilters(); cancelLookup(); changedFilter() },
         { state.singleCharacter = !state.singleCharacter; changedFilter() })
@@ -80,16 +82,14 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
     /** 左列当前是不是「读音过滤」模式；模式变了也要重建适配器，否则点击回调还停在旧语义上。 */
     private var leftReadingMode = false
     private var rendered = emptyList<com.qingyu.imemodule.keyboard.CandidatePanelState.Entry>()
-    private val visibleCandidateCapacity: Int get() = manager.spanCount *
-        (contentHeight / maxOf(dp(56), contentHeight / 5)).coerceAtLeast(1)
+    private var visibleRows = 4
+    private var cellHeightPx = 0
+    private val visibleCandidateCapacity: Int get() = manager.spanCount * visibleRows
     val defaultCandidateIndex: Int get() = rendered.firstOrNull()?.displayIndex ?: -1
 
     init {
-        // 前两条保持宽格强调头部候选；长候选按内容跨列，避免被四列宽度压成省略号。
-        manager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-            override fun getSpanSize(position: Int): Int =
-                adapter.spanFor(position).coerceAtMost(manager.spanCount)
-        }
+        // 对齐搜狗展开面板：每个候选固定一个单元格，长短词靠字号自适应，
+        // 不按内容跨列，也不给前两项额外宽度。
         val root = LinearLayout(context)
         left.layoutManager = LinearLayoutManager(context)
         // 左列即音节/组合/笔画表（对齐参考展开面板左列），注音标签在顶栏带内
@@ -163,11 +163,27 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
 
     private fun updateColumns() {
         val width = gridFrame.width.takeIf { it > 0 } ?: (this.width - railWidth - if (leftColumn.visibility == VISIBLE) leftWidth else 0)
+        val height = gridFrame.height
+        // 搜狗式整行分页：3–4 个完整行均分面板高度，最后一行不会被屏幕/手势区截半。
+        val rows = if (height > 0) (height / dp(56)).coerceIn(2, 4) else 4
+        val cellHeight = if (height > 0) height / rows else dp(72)
         val cell = dp(56 * resources.configuration.fontScale.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
         val columns = (width / cell).toInt().coerceIn(2, 4)
+        val changed = manager.spanCount != columns || visibleRows != rows || cellHeightPx != cellHeight
         if (manager.spanCount != columns) {
             manager.spanCount = columns
-            manager.spanSizeLookup.invalidateSpanIndexCache()
+        }
+        visibleRows = rows
+        cellHeightPx = cellHeight
+        adapter.setCellHeight(cellHeight)
+        if (changed) {
+            KeyboardOpLog.record(
+                "candidates_panel",
+                "cols" to manager.spanCount,
+                "rows" to rows,
+                "cellH" to cellHeight,
+                "gridH" to height,
+            )
         }
     }
 
@@ -184,7 +200,6 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
         }
         rendered = filtered
         adapter.submitEntries(rendered)
-        manager.spanSizeLookup.invalidateSpanIndexCache()
         actions.bind(state.strokeMode, state.singleCharacter, InputModeSwitcher.isChinese)
         val composingText = DecodingInfo.handwritingCompositionPinyin ?: DecodingInfo.composingStrForDisplay.toString()
         val syllableMode = !state.strokeMode && DecodingInfo.prefixs.isEmpty()
@@ -223,7 +238,7 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
             leftReadingMode = readingMode
             left.adapter = PrefixAdapter(
                 context, labels.toTypedArray(), if (state.strokeMode) strokeDescriptions else null,
-                contentHeight / 5, textSizeSp = 20f
+                dp(56), textSizeSp = 20f
             ) { index ->
                 when {
                     state.strokeMode -> {

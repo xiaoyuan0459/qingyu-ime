@@ -10,7 +10,6 @@ import com.qingyu.imemodule.R
 import com.qingyu.imemodule.application.Launcher
 import com.qingyu.imemodule.application.CustomConstant
 import com.qingyu.imemodule.manager.InputModeSwitcher
-import com.qingyu.imemodule.prefs.behavior.ClipboardLayoutMode
 import com.qingyu.imemodule.prefs.behavior.DoublePinyinSchemaMode
 import com.qingyu.imemodule.prefs.behavior.HalfWidthSymbolsMode
 import com.qingyu.imemodule.prefs.behavior.KeyboardOneHandedMod
@@ -343,26 +342,6 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             200,
             "秒"
         ) { clipboardListening.getValue() && clipboardSuggestion.getValue() }
-
-        init { category(R.string.group_clipboard_layout) }
-        val clipboardLayoutCompact = list(
-            R.string.clipboard_layout_compact_mode,
-            "clipboard_layout_mode",
-            ClipboardLayoutMode.ListView,
-            ClipboardLayoutMode,
-            listOf(
-                ClipboardLayoutMode.ListView,
-                ClipboardLayoutMode.GridView,
-                ClipboardLayoutMode.FlexboxView
-            ),
-            listOf(
-                R.string.clipboard_layout_mode_list,
-                R.string.clipboard_layout_mode_grid,
-                R.string.clipboard_layout_mode_flexbox
-            )
-        ) {
-            clipboardListening.getValue()
-        }
     }
 
     private val providers = mutableListOf<ManagedPreferenceProvider>()

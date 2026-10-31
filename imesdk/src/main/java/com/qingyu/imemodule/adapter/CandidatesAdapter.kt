@@ -26,6 +26,14 @@ class CandidatesAdapter(private val context: Context) :
     private val textColor: Int = activeTheme.keyTextColor
     private var mOnItemClickListener: OnRecyclerItemClickListener? = null
     private var entries: List<CandidatePanelState.Entry> = emptyList()
+    private var cellHeight = 0
+
+    /** 展开面板按整行数均分高度，行高一致且底部不会露出半行。 */
+    fun setCellHeight(px: Int) {
+        if (px <= 0 || px == cellHeight) return
+        cellHeight = px
+        notifyDataSetChanged()
+    }
     fun submitEntries(value: List<CandidatePanelState.Entry>) {
         entries = value
         notifyDataSetChanged()
@@ -42,6 +50,13 @@ class CandidatesAdapter(private val context: Context) :
     }
 
     override fun onBindViewHolder(holder: SymbolHolder, position: Int) {
+        if (cellHeight > 0) {
+            val params = holder.itemView.layoutParams
+            if (params.height != cellHeight) {
+                params.height = cellHeight
+                holder.itemView.layoutParams = params
+            }
+        }
         holder.textView.text = entries[position].text
         holder.textView.setTextColor(textColor)
         holder.textView.setOnClickListener { view: View? ->
@@ -50,34 +65,6 @@ class CandidatesAdapter(private val context: Context) :
                 mOnItemClickListener?.onItemClick(this@CandidatesAdapter, view, it.displayIndex)
             }
         }
-    }
-
-    /**
-     * 展开面板的跨列数。
-     *
-     * 长候选固定塞进四列会被压成「我…」。按内容宽度让 5–6 个汉字跨两列、更长跨整行，
-     * 配合不限行高的自动换行，候选能完整显示；短候选仍保持四列密度。
-     */
-    fun spanFor(position: Int): Int {
-        val text = entries.getOrNull(position)?.text.orEmpty()
-        val width = visualWidth(text)
-        return when {
-            width <= 6 -> 1
-            width <= 12 -> 2
-            else -> 4
-        }.let { if (position < 2 && entries.size > 2) maxOf(it, 2) else it }
-    }
-
-    /** 汉字/全角字符按两格估算，ASCII 与 emoji 记一格。 */
-    private fun visualWidth(text: String): Int {
-        var width = 0
-        var index = 0
-        while (index < text.length) {
-            val codePoint = text.codePointAt(index)
-            width += if (codePoint >= 0x2E80) 2 else 1
-            index += Character.charCount(codePoint)
-        }
-        return width
     }
 
     override fun getItemCount(): Int {
@@ -90,7 +77,10 @@ class CandidatesAdapter(private val context: Context) :
         init {
             textView.setTextColor(textColor)
             textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, instance.candidateTextSize)
-            // 行高交给内容：长候选可以继续换行，由面板滚动承载，不能用固定高度截断。
+            // 搜狗式固定单元格：每个候选只占一格，单行；长短词都靠自动缩放，
+            // 极长的条目省略，而不是靠跨列改变整行节奏。
+            textView.maxLines = 1
+            textView.ellipsize = android.text.TextUtils.TruncateAt.END
             val maxSp = instance.candidateTextSize.toInt().coerceAtLeast(10)
             val minSp = minOf(10, maxSp)
             TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(textView, minSp, maxSp, 1, TypedValue.COMPLEX_UNIT_SP)
