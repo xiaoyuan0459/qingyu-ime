@@ -230,8 +230,8 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
             inputView.pasteClipboardText(copyContents[position].content)
             KeyboardManager.instance.switchKeyboard()
         }
-        mRVSymbolsView.setOnItemLongClickListener { itemView: View?, position: Int ->
-            showItemMenu(position, copyContents, itemView)
+        mRVSymbolsView.setOnItemLongClickListener { _: View?, position: Int ->
+            showItemMenu(position, copyContents)
         }
         mRVSymbolsView.setSwipeMenuCreator{ _: SwipeMenu, rightMenu: SwipeMenu, position: Int ->
             val topItem = SwipeMenuItem(mContext).apply {
@@ -269,9 +269,9 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         mRVSymbolsView.setAdapter(adapter)
     }
 
-    /** 长按条目：Flyme 搜狗式圆角动作卡，贴着被长按的条目上方或下方展开。 */
+    /** 长按条目：搜狗式圆角动作卡，在剪贴板面板中央展开。 */
     private val actionMenu by lazy { ClipboardActionMenu(context, inputView) }
-    private fun showItemMenu(position: Int, datas: MutableList<Clipboard>, anchor: View?) {
+    private fun showItemMenu(position: Int, datas: MutableList<Clipboard>) {
         if (actionSaving) return
         dismissItemMenu()
         val data = datas.getOrNull(position) ?: return
@@ -297,15 +297,14 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
             "position" to position,
             "actions" to actions.joinToString(",") { it.first },
         )
-        showActionPopup(actions, anchor = anchor)
+        showActionPopup(actions)
     }
 
     private fun showActionPopup(
         actions: List<Pair<String, () -> Unit>>,
         message: String? = null,
-        anchor: View? = null,
     ) {
-        actionMenu.show(actions, message, anchor)
+        actionMenu.show(actions, message)
     }
 
     private fun dismissItemMenu() {

@@ -1,7 +1,6 @@
 package com.qingyu.imemodule.keyboard.container
 
 import android.content.Context
-import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
@@ -17,12 +16,12 @@ import com.qingyu.imemodule.keyboard.InputView
 import com.qingyu.imemodule.utils.keyboardItemBackground
 import splitties.dimensions.dp
 
-/** Clipboard actions stay inside the IME window, anchored to the long-pressed row. */
+/** Clipboard actions stay inside the IME window, centered like the reference IME. */
 internal class ClipboardActionMenu(private val context: Context, private val inputView: InputView) {
     private var overlay: FrameLayout? = null
     private var previousAccessibility: List<Pair<View, Int>> = emptyList()
 
-    fun show(actions: List<Pair<String, () -> Unit>>, message: String?, anchor: View?) {
+    fun show(actions: List<Pair<String, () -> Unit>>, message: String?) {
         if (actions.isEmpty()) return
         dismiss()
         val host = inputView.mSkbRoot
@@ -77,7 +76,9 @@ internal class ClipboardActionMenu(private val context: Context, private val inp
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ))
         }
-        val (left, top) = placeCard(host, anchor, cardWidth, cardHeight, hostWidth, hostHeight)
+        // 搜狗的动作卡在键盘面板内水平、垂直居中，而不是贴着被长按的条目。
+        val left = ((hostWidth - cardWidth) / 2).coerceAtLeast(margin)
+        val top = ((hostHeight - cardHeight) / 2).coerceAtLeast(margin)
         val root = FrameLayout(context).apply {
             setBackgroundColor(0x66000000)
             isFocusableInTouchMode = true
@@ -99,46 +100,6 @@ internal class ClipboardActionMenu(private val context: Context, private val inp
         host.addView(root, FrameLayout.LayoutParams(hostWidth, hostHeight))
         root.requestFocus()
         ViewCompat.setAccessibilityPaneTitle(card, context.getString(R.string.clipboard_action_menu))
-    }
-
-    private fun placeCard(
-        host: View,
-        anchor: View?,
-        cardWidth: Int,
-        cardHeight: Int,
-        hostWidth: Int,
-        hostHeight: Int,
-    ): Pair<Int, Int> {
-        val margin = context.dp(8)
-        val gap = context.dp(8)
-        val anchorRect = anchorRectInHost(host, anchor)
-        val maxLeft = (hostWidth - cardWidth - margin).coerceAtLeast(margin)
-        val left = (anchorRect.centerX() - cardWidth / 2).coerceIn(margin, maxLeft)
-        val maxTop = (hostHeight - cardHeight - margin).coerceAtLeast(margin)
-        val above = anchorRect.top - gap - cardHeight
-        val below = anchorRect.bottom + gap
-        val top = when {
-            above >= margin -> above
-            below <= maxTop -> below
-            // 条目两侧都放不下时居中，至少不把卡片继续往屏幕外推。
-            else -> (hostHeight - cardHeight) / 2
-        }.coerceIn(margin, maxTop)
-        return left to top
-    }
-
-
-    private fun anchorRectInHost(host: View, anchor: View?): Rect {
-        if (anchor == null || !anchor.isAttachedToWindow) {
-            // 条目视图被回收时退回键盘底部，保持弹卡仍在可触摸区域内。
-            return Rect(host.width / 2, host.height, host.width / 2, host.height)
-        }
-        val anchorLocation = IntArray(2)
-        val hostLocation = IntArray(2)
-        anchor.getLocationInWindow(anchorLocation)
-        host.getLocationInWindow(hostLocation)
-        val left = anchorLocation[0] - hostLocation[0]
-        val top = anchorLocation[1] - hostLocation[1]
-        return Rect(left, top, left + anchor.width, top + anchor.height)
     }
 
     fun dismiss(): Boolean {
