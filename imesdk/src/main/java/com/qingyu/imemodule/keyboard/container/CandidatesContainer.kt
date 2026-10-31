@@ -85,11 +85,8 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
     val defaultCandidateIndex: Int get() = rendered.firstOrNull()?.displayIndex ?: -1
 
     init {
-        // 前两条保持宽格强调头部候选；长候选按内容跨列，避免被四列宽度压成省略号。
-        manager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-            override fun getSpanSize(position: Int): Int =
-                adapter.spanFor(position).coerceAtMost(manager.spanCount)
-        }
+        // 对齐搜狗展开面板：每个候选固定一个单元格，长短词靠字号自适应，
+        // 不按内容跨列，也不给前两项额外宽度。
         val root = LinearLayout(context)
         left.layoutManager = LinearLayoutManager(context)
         // 左列即音节/组合/笔画表（对齐参考展开面板左列），注音标签在顶栏带内
@@ -167,7 +164,6 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
         val columns = (width / cell).toInt().coerceIn(2, 4)
         if (manager.spanCount != columns) {
             manager.spanCount = columns
-            manager.spanSizeLookup.invalidateSpanIndexCache()
         }
     }
 
@@ -184,7 +180,6 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
         }
         rendered = filtered
         adapter.submitEntries(rendered)
-        manager.spanSizeLookup.invalidateSpanIndexCache()
         actions.bind(state.strokeMode, state.singleCharacter, InputModeSwitcher.isChinese)
         val composingText = DecodingInfo.handwritingCompositionPinyin ?: DecodingInfo.composingStrForDisplay.toString()
         val syllableMode = !state.strokeMode && DecodingInfo.prefixs.isEmpty()

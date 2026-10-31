@@ -75,7 +75,10 @@ internal class ClipboardActionMenu(private val context: Context, private val inp
             View.MeasureSpec.makeMeasureSpec((hostWidth - 2 * margin).coerceAtLeast(1), View.MeasureSpec.AT_MOST),
             View.MeasureSpec.makeMeasureSpec((hostHeight - 2 * margin).coerceAtLeast(1), View.MeasureSpec.AT_MOST)
         )
+        // 真机搜狗长按卡片约占可用宽度的 3/4；横向动作在不改变卡片宽度的前提下滚动。
+        val maxCardWidth = minOf((hostWidth * 0.75f).toInt(), context.dp(320))
         val cardWidth = card.measuredWidth.coerceIn(1, hostWidth - 2 * margin)
+            .coerceAtMost(maxCardWidth)
         val cardHeight = card.measuredHeight.coerceIn(1, hostHeight - 2 * margin)
         val (left, top) = placeCard(host, anchor, cardWidth, cardHeight, hostWidth, hostHeight)
         val root = FrameLayout(context).apply {

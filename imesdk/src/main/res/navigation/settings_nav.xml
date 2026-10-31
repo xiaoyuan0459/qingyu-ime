@@ -23,9 +23,6 @@
             android:id="@+id/action_settingsFragment_to_themeSettingsFragment"
             app:destination="@id/themeFragment" />
         <action
-            android:id="@+id/action_settingsFragment_to_keyboardFeedbackFragment"
-            app:destination="@id/keyboardFeedbackFragment" />
-        <action
             android:id="@+id/action_settingsFragment_to_keyboardSettingFragment"
             app:destination="@id/keyboardSettingFragment" />
         <action
@@ -67,10 +64,6 @@
         android:id="@+id/voiceSettingsFragment"
         android:name="com.qingyu.imemodule.ui.fragment.VoiceSettingsFragment"
         android:label="@string/ime_settings_voice" />
-    <fragment
-        android:id="@+id/keyboardFeedbackFragment"
-        android:name="com.qingyu.imemodule.ui.fragment.KeyboardFeedbacksFragment"
-        android:label="@string/keyboard_feedback" />
     <fragment
         android:id="@+id/themeFragment"
         android:name="com.qingyu.imemodule.ui.fragment.ThemeFragment"
