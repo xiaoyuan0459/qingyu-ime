@@ -26,6 +26,7 @@ import com.qingyu.imemodule.prefs.AppPrefs
 import com.qingyu.imemodule.prefs.behavior.ClipboardLayoutMode
 import com.qingyu.imemodule.singleton.EnvironmentSingleton.Companion.instance
 import com.qingyu.imemodule.utils.DevicesUtils.dip2px
+import com.qingyu.imemodule.utils.keyboardItemBackground
 import splitties.views.dsl.core.margin
 import splitties.dimensions.dp
 
@@ -51,45 +52,77 @@ class ClipBoardAdapter(context: Context, datas: MutableList<Clipboard>, private 
         mContainer.minimumHeight = mContext.dp(48)
         mContainer.gravity = Gravity.CENTER_VERTICAL
         val marginValue = dip2px(3)
-        when (clipboardLayoutCompact){
-            ClipboardLayoutMode.ListView -> {
-                mContainer.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                    setMargins(marginValue*2, marginValue, marginValue*2, marginValue)
-                }
+        val listMode = clipboardLayoutCompact == ClipboardLayoutMode.ListView
+        if (listMode) {
+            // 对齐搜狗剪贴板：单列扁平行，左对齐、无大圆角卡片，只在底部画一条细分割线。
+            mContainer.layoutParams = RecyclerView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+            mContainer.background = keyboardItemBackground(mContext)
+        } else {
+            mContainer.layoutParams = GridLayoutManager.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                setMargins(marginValue, marginValue, marginValue, marginValue)
             }
-            else -> {
-                mContainer.layoutParams = GridLayoutManager.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                    setMargins(marginValue, marginValue, marginValue, marginValue)
-                }
+            mContainer.background = GradientDrawable().apply {
+                setColor(activeTheme.keyBackgroundColor)
+                setShape(GradientDrawable.RECTANGLE)
+                setCornerRadius(ThemeManager.prefs.keyRadius.getValue().toFloat())
             }
-        }
-        mContainer.background = GradientDrawable().apply {
-            setColor(activeTheme.keyBackgroundColor)
-            setShape(GradientDrawable.RECTANGLE)
-            setCornerRadius(ThemeManager.prefs.keyRadius.getValue().toFloat()) // 设置圆角半径
         }
         val viewContext = EmojiTextView(mContext).apply {
             id = R.id.clipboard_adapter_content
             maxLines = 3
             ellipsize = TextUtils.TruncateAt.END
-            gravity = Gravity.CENTER
-            layoutParams = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT).apply {
-                margin = marginValue
-                addRule(RelativeLayout.CENTER_IN_PARENT, RelativeLayout.TRUE)
+            if (listMode) {
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                setPadding(mContext.dp(16), mContext.dp(10), mContext.dp(16), mContext.dp(10))
+                layoutParams = RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.MATCH_PARENT,
+                    RelativeLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { addRule(RelativeLayout.CENTER_VERTICAL, RelativeLayout.TRUE) }
+            } else {
+                gravity = Gravity.CENTER
+                layoutParams = RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.MATCH_PARENT,
+                    RelativeLayout.LayoutParams.WRAP_CONTENT,
+                ).apply {
+                    margin = marginValue
+                    addRule(RelativeLayout.CENTER_IN_PARENT, RelativeLayout.TRUE)
+                }
             }
         }
         val viewIvYopTips = ImageView(mContext).apply {
             id = R.id.clipboard_adapter_top_tips
             setImageResource(R.drawable.ic_baseline_top_tips_32)
-            layoutParams = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT).apply {
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+            ).apply {
                 addRule(RelativeLayout.ALIGN_PARENT_TOP, RelativeLayout.TRUE)
                 addRule(RelativeLayout.ALIGN_PARENT_END, RelativeLayout.TRUE)
+                if (listMode) setMargins(0, mContext.dp(6), mContext.dp(12), 0)
             }
         }
         mContainer.addView(viewContext)
         mContainer.addView(viewIvYopTips)
+        if (listMode) {
+            val dividerColor = androidx.core.graphics.ColorUtils.setAlphaComponent(
+                textColor, (android.graphics.Color.alpha(textColor) * 0.12f).toInt(),
+            )
+            mContainer.addView(View(mContext).apply {
+                setBackgroundColor(dividerColor)
+                layoutParams = RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.MATCH_PARENT, 1,
+                ).apply {
+                    addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE)
+                    setMargins(mContext.dp(16), 0, mContext.dp(16), 0)
+                }
+            })
+        }
         return SymbolHolder(mContainer)
     }
 
@@ -123,7 +156,11 @@ class ClipBoardAdapter(context: Context, datas: MutableList<Clipboard>, private 
         var ivTopTips: ImageView
         init {
             textView.setTextColor(textColor)
-            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, instance.candidateTextSize)
+            if (clipboardLayoutCompact == ClipboardLayoutMode.ListView) {
+                textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            } else {
+                textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, instance.candidateTextSize)
+            }
             ivTopTips = view.findViewById(R.id.clipboard_adapter_top_tips)
         }
     }
