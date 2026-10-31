@@ -44,11 +44,11 @@ import splitties.dimensions.dp
 /** Display projection over the original engine list: filtering never renumbers engine candidates. */
 @SuppressLint("ViewConstructor")
 class CandidatesContainer(context: Context, inputView: InputView) : BaseContainer(context, inputView) {
-    // 展开态顶栏带原地换成贴左缘注音标签（参考展开面板顶带），候选行不再重复一份
+    // 展开态顶栏让位，候选面板接管「候选栏+键盘区」的整块高度。
     override val occupiesCandidateArea: Boolean get() = true
-    // 展开态窗口与键盘空闲态等高：顶带（注音标签）+ 面板＝键盘区，
-    // 悬浮气泡在展开时隐藏，不再预留空带（参考输入法展开态即此形态）。
-    override val contentHeight: Int get() = EnvironmentSingleton.instance.skbHeight
+    // 注音继续复用键盘上方的打字标签，标签下沿贴面板上沿；面板总高与键盘态一致。
+    override val contentHeight: Int get() = EnvironmentSingleton.instance.skbHeight +
+        EnvironmentSingleton.instance.heightForCandidates
     private val state = inputView.candidatePanelState
     private val theme = ThemeManager.activeTheme
     private val grid = RecyclerView(context)

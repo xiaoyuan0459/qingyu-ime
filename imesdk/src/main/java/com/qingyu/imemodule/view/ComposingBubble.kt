@@ -27,15 +27,12 @@ internal class ComposingBubble(context: Context, private val tabShape: Boolean =
     init {
         visibility = GONE
         if (tabShape) {
-            // 展开面板顶带：标签贴左缘，文字靠近面板上沿，像搜狗一样从灰色顶带里探出白色标签块。
-            setPadding(dp(16), 0, dp(20), dp(8))
-            addView(label, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-                gravity = Gravity.BOTTOM or Gravity.START
-            })
+            // 展开面板顶带：短标签贴左缘和面板上沿，上方是宿主页面背景，不铺整条键盘底色。
+            setPadding(dp(12), dp(6), dp(16), dp(6))
         } else {
             setPadding(dp(10), dp(4), dp(10), dp(4))
-            addView(label, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
         }
+        addView(label, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
     }
 
     fun updateTextSize(sizePx: Float) = label.setTextSize(TypedValue.COMPLEX_UNIT_PX, sizePx)
@@ -58,10 +55,13 @@ internal class ComposingBubble(context: Context, private val tabShape: Boolean =
             if (tabShape) {
                 // 贴左缘、底边与候选行齐平的标签形态：仅右上角倒角，与参考一致
                 cornerRadii = floatArrayOf(0f, 0f, r, r, 0f, 0f, 0f, 0f)
+                // 标签背后是宿主页面，不一定有灰色条衬托，给一条极淡描边界定轮廓。
+                setStroke(1, if (ThemeManager.activeTheme.isDark) 0x24FFFFFF.toInt() else 0x14000000)
             } else {
                 cornerRadius = r
             }
             setColor(if (ThemeManager.activeTheme.isDark) 0xFF3A3A3C.toInt() else Color.WHITE)
         }
+        if (tabShape) elevation = dp(2).toFloat()
     }
 }
