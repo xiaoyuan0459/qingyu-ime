@@ -484,6 +484,9 @@
     <string name="x_recycler_load_error">加载出错啦，请稍后重试</string>
     <string name="x_recycler_load_more_message">正在加载更多数据，请稍后</string>
     <string name="menu_text_edit">文本编辑</string>
+    <string name="feedback_info">反馈参数</string>
+    <string name="text_edit_select_mode">选择</string>
+    <string name="text_edit_cancel_select">取消选择</string>
     <string name="text_edit_selecting">选择模式，方向键扩展选区</string>
     <string name="text_edit_moving">移动光标模式</string>
     <string name="export_user_data">导出用户数据</string>

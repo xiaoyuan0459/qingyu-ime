@@ -242,8 +242,8 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
             inputView.pasteClipboardText(copyContents[position].content)
             KeyboardManager.instance.switchKeyboard()
         }
-        mRVSymbolsView.setOnItemLongClickListener { _: View?, position: Int ->
-            showItemMenu(position, copyContents)
+        mRVSymbolsView.setOnItemLongClickListener { itemView: View?, position: Int ->
+            showItemMenu(position, copyContents, itemView)
         }
         mRVSymbolsView.setSwipeMenuCreator{ _: SwipeMenu, rightMenu: SwipeMenu, position: Int ->
             val topItem = SwipeMenuItem(mContext).apply {
@@ -281,33 +281,37 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         mRVSymbolsView.setAdapter(adapter)
     }
 
-    /** 长按条目：Flyme 搜狗式居中圆角动作卡 */
+    /** 长按条目：Flyme 搜狗式圆角动作卡，贴着被长按的条目上方或下方展开。 */
     private val actionMenu by lazy { ClipboardActionMenu(context, inputView) }
-    private fun showItemMenu(position: Int, datas: MutableList<Clipboard>) {
+    private fun showItemMenu(position: Int, datas: MutableList<Clipboard>, anchor: View?) {
         if (actionSaving) return
         dismissItemMenu()
         val data = datas.getOrNull(position) ?: return
         val actions = mutableListOf<Pair<String, () -> Unit>>()
         if (itemMode == SkbMenuMode.ClipBoard) {
-            actions += "删除该文本" to {
+            actions += "删除" to {
                 ImeDataRepository.mutate { clipboardDao().deleteByContent(data.content) }
             }
-            actions += context.getString(R.string.clipboard_move_to_phrases) to { moveToPhrases(data.content) }
+            actions += "移入短语" to { moveToPhrases(data.content) }
             actions += context.getString(R.string.clipboard_split_action) to { showSplit(data.content) }
-            actions += (if (data.isKeep == 1) "取消置顶" else "置顶该文本") to { togglePin(data.content) }
+            actions += (if (data.isKeep == 1) "取消置顶" else "置顶") to { togglePin(data.content) }
         } else {
-            actions += "编辑快捷短语" to {
+            actions += "编辑短语" to {
                 ImeDataRepository.phrase(data.content)?.let { inputView.onSettingsMenuClick(SkbMenuMode.AddPhrases, it) }
             }
-            actions += "删除该文本" to {
+            actions += "删除" to {
                 ImeDataRepository.mutate { phraseDao().deleteByContent(data.content) }
             }
         }
-        showActionPopup(actions)
+        showActionPopup(actions, anchor = anchor)
     }
 
-    private fun showActionPopup(actions: List<Pair<String, () -> Unit>>, message: String? = null) {
-        actionMenu.show(actions, message)
+    private fun showActionPopup(
+        actions: List<Pair<String, () -> Unit>>,
+        message: String? = null,
+        anchor: View? = null,
+    ) {
+        actionMenu.show(actions, message, anchor)
     }
 
     private val mHashMapSymbols = HashMap<Int, Int>() //候选词索引列数对应表

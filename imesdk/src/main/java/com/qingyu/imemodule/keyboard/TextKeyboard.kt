@@ -263,7 +263,9 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
 
     private fun drawSoftKey(canvas: Canvas, softKey: SoftKey, keyXMargin: Int, keyYMargin: Int) {
         val enabled = mService?.isTextEditActionEnabled(softKey.code) != false
-        if ((enabled && softKey.pressed) || (mService?.hasSelection == true && softKey.code == InputModeSwitcher.USER_KEYCODE_SELECT_MODE)) {
+        val selectActive = mService?.hasSelection == true &&
+            softKey.code == InputModeSwitcher.USER_KEYCODE_SELECT_MODE
+        if ((enabled && softKey.pressed) || selectActive) {
             drawKeyBackground(canvas, softKey, mActiveTheme.keyPressHighlightColor, keyXMargin, keyYMargin)
         } else if (isKeyBorder) {
             // 回车与字母键同帽：强调色只留给候选首词，键面统一白帽+深色字形
@@ -277,6 +279,8 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
                 (InputModeSwitcher.isLower && InputModeSwitcher.isEnglish)
         }
         var keyLabel = if (lowerCaseLabel) softKey.keyLabel.lowercase() else softKey.keyLabel
+        // 选中态不只换底色：把「选择」改成「取消选择」，下一次点按的语义一眼可见。
+        if (selectActive) keyLabel = context.getString(R.string.text_edit_cancel_select)
         val keyLabelSmall = softKey.getmKeyLabelSmall()
         val keyMnemonic = softKey.keyMnemonic
         var keyIcon = if (softKey.code == KeyEvent.KEYCODE_SPACE &&
@@ -319,17 +323,32 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
             val y = softKey.mTop + weightHeigth * 3.4f
             canvas.drawText(keyLabelSmall, x, y, mPaint)
         }
-        if (inlineSuffix) {            mPaint.color = textColor
+        if (inlineSuffix) {
+            // 「全/半屏」也是功能帽：主字跟随功能帽字号，整行再按可用宽度等比收缩，
+            // 大字体或悬浮窄键下不会把「全」画得比字母还大。
+            mPaint.color = ColorUtils.setAlphaComponent(
+                textColor, (Color.alpha(textColor) * 0.5f).toInt()
+            )
             mPaint.setTypeface(Typeface.DEFAULT)
-            mPaint.textSize = mNormalKeyTextSize.toFloat()
+            val mainSize = mNormalKeyTextSize * FUNCTIONAL_CAP_TEXT_RATIO
+            val suffixSize = mNormalKeyTextSizeSmall.toFloat()
+            mPaint.textSize = mainSize
+            val rawMainWidth = mPaint.measureText(keyLabel)
+            mPaint.textSize = suffixSize
+            val rawSuffixWidth = mPaint.measureText(keyLabelSmall)
+            val availableWidth = softKey.width() * 0.88f
+            val scale = if (rawMainWidth + rawSuffixWidth > availableWidth) {
+                availableWidth / (rawMainWidth + rawSuffixWidth)
+            } else 1f
+            mPaint.textSize = mainSize * scale
             val mainWidth = mPaint.measureText(keyLabel)
-            mPaint.textSize = mNormalKeyTextSizeSmall.toFloat()
-            val startX = softKey.mLeft +
-                    (softKey.width() - mainWidth - mPaint.measureText(keyLabelSmall)) / 2.0f
+            mPaint.textSize = suffixSize * scale
+            val suffixWidth = mPaint.measureText(keyLabelSmall)
+            val startX = softKey.mLeft + (softKey.width() - mainWidth - suffixWidth) / 2.0f
             val baseline = (softKey.mTop + softKey.mBottom) / 2.0f + (mFmi.bottom - mFmi.top)
-            mPaint.textSize = mNormalKeyTextSize.toFloat()
+            mPaint.textSize = mainSize * scale
             canvas.drawText(keyLabel, startX, baseline, mPaint)
-            mPaint.textSize = mNormalKeyTextSizeSmall.toFloat()
+            mPaint.textSize = suffixSize * scale
             canvas.drawText(keyLabelSmall, startX + mainWidth, baseline, mPaint)
         } else if (drawLanguageLabel(canvas, softKey)) {
             // 中/英 键交给文字绘制（见 drawLanguageLabel），落到下面的图标分支就是旧的整张矢量图
@@ -368,9 +387,13 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
             // 对齐参考输入法：只有字母与当前模式字是深色，功能帽（符 / 123 / 标点 / 分词 /
             // 编辑键）排中灰且不吃「字体加粗」开关，否则整面键盘一起变黑，层级就没了。
             val functional = isFunctionalCap(softKey)
-            mPaint.color = if (functional)
-                ColorUtils.setAlphaComponent(textColor, (Color.alpha(textColor) * 0.5f).toInt())
-            else textColor
+            mPaint.color = when {
+                selectActive -> mActiveTheme.accentKeyBackgroundColor
+                functional -> ColorUtils.setAlphaComponent(
+                    textColor, (Color.alpha(textColor) * 0.5f).toInt()
+                )
+                else -> textColor
+            }
             mPaint.typeface = if (keyboardFontBold && !functional) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             // 功能帽比字母小一档：同一台机器对照参考输入法底排实测，它的「符」墨高 45px、
             // 字母约 86px 的字号，约 0.65 倍；跟着字母同高会让整排键面显得塞满。

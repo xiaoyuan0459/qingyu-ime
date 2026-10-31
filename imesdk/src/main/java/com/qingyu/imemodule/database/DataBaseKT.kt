@@ -19,7 +19,7 @@ import com.qingyu.imemodule.database.entry.SkbFun
 import com.qingyu.imemodule.database.entry.UsedSymbol
 import com.qingyu.imemodule.prefs.behavior.SkbMenuMode
 
-@Database(entities = [SideSymbol::class, Clipboard::class, UsedSymbol::class, Phrase::class, SkbFun::class], version = 7, exportSchema = true)
+@Database(entities = [SideSymbol::class, Clipboard::class, UsedSymbol::class, Phrase::class, SkbFun::class], version = 8, exportSchema = true)
 abstract class DataBaseKT : RoomDatabase() {
     abstract fun sideSymbolDao(): SideSymbolDao
     abstract fun clipboardDao(): ClipboardDao
@@ -79,6 +79,14 @@ abstract class DataBaseKT : RoomDatabase() {
             }
         }
 
+        // 工具箱新增「反馈参数」：老库把 14 号之后顺移一位，插在花漾字与定制工具栏之间。
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("UPDATE skbfun SET position = position + 1 WHERE isKeep = 0 AND position >= 14")
+                db.execSQL("INSERT OR IGNORE INTO skbfun (name, isKeep, position) VALUES ('FeedbackInfo', 0, 14)")
+            }
+        }
+
         private var currentDatabase: DataBaseKT? = null
         val instance: DataBaseKT
             @Synchronized get() = currentDatabase ?: create(Launcher.instance.context, "ime_db").also { currentDatabase = it }
@@ -97,6 +105,7 @@ abstract class DataBaseKT : RoomDatabase() {
             .addMigrations(MIGRATION_4_5)
             .addMigrations(MIGRATION_5_6)
             .addMigrations(MIGRATION_6_7)
+            .addMigrations(MIGRATION_7_8)
             .addCallback(object :Callback(){
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
@@ -144,9 +153,10 @@ abstract class DataBaseKT : RoomDatabase() {
                     SkbFun(name = SkbMenuMode.Mnemonic.name, isKeep = 0, position = 11),
                     SkbFun(name = SkbMenuMode.FloatKeyboard.name, isKeep = 0, position = 12),
                     SkbFun(name = SkbMenuMode.FlowerTypeface.name, isKeep = 0, position = 13),
-                    SkbFun(name = SkbMenuMode.Custom.name, isKeep = 0, position = 14),
-                    SkbFun(name = SkbMenuMode.Settings.name, isKeep = 0, position = 15),
-                    SkbFun(name = SkbMenuMode.TextEdit.name, isKeep = 0, position = 16),
+                    SkbFun(name = SkbMenuMode.FeedbackInfo.name, isKeep = 0, position = 14),
+                    SkbFun(name = SkbMenuMode.Custom.name, isKeep = 0, position = 15),
+                    SkbFun(name = SkbMenuMode.Settings.name, isKeep = 0, position = 16),
+                    SkbFun(name = SkbMenuMode.TextEdit.name, isKeep = 0, position = 17),
                 )
                 database.skbFunDao().insertAll(skbFuns)
             }

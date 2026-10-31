@@ -28,30 +28,19 @@ body:
     validations:
       required: false
 
-  - type: markdown
-    attributes:
-      value: |
-        ### 设备信息 / Device Information
-
-  - type: input
-    id: os_version
-    attributes:
-      label: 系统版本 / OS Version
-    validations:
-      required: true
-
-  - type: input
-    id: app_version
-    attributes:
-      label: 应用版本 / App Version
-      description: “关于”页面中的“更新日志”条目，长按复制。 / It could be found below "Changelog" in the "About" page, long press to copy it.
-    validations:
-      required: true
-
   - type: textarea
-    id: build_info
+    id: device_info
     attributes:
-      label: 构建信息 / Build Information
-      description: “关于”页面中的“构建信息”条目，长按复制。 / It could be found below "Build information" in the "About" page, long press to copy it.
+      label: 设备信息 / Device Information
+      description: |
+        轻语输入法键盘 →「工具箱 → 反馈参数」会一次插入系统、应用、构建与设备屏幕信息；整段粘贴到本框即可。
+        Open the Qingyu IME toolbox → "Feedback info" to insert all fields at once, then paste the block here.
+      placeholder: |
+        系统版本: Android 13 (API 33)
+        应用版本: 0.2.0-dev
+        构建信息: 2026-10-30 16:42:05 +0800 (abcdefg)
+        品牌/型号: ...
+        处理器架构: arm64-v8a
+        屏幕: 1080×2400 / 480dpi / 字体 1.00×
     validations:
       required: true

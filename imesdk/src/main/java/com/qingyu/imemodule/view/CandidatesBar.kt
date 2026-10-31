@@ -144,7 +144,12 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
                 setImageResource(R.drawable.sdk_level_list_candidates_display)
             }
             mArrowDivider = View(context)
-            mRVCandidates = RecyclerView(context).apply {
+            mRVCandidates = object : RecyclerView(context) {
+                override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+                    super.onLayout(changed, l, t, r, b)
+                    updatePartialCandidateVisibility()
+                }
+            }.apply {
                 setItemAnimator(null)
                 // 行高与行宽都由 CandidatesBar.onMeasure 以 EXACTLY 指定，候选内容
                 // 不会改变自身尺寸；固定尺寸后内容刷新不再向上传播 requestLayout。
@@ -159,6 +164,11 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             }
             mRVCandidates.setAdapter(mCandidatesAdapter)
             mRVCandidates.addOnScrollListener(object : OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    super.onScrolled(recyclerView, dx, dy)
+                    updatePartialCandidateVisibility()
+                }
+
                 override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                     if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                         val layoutManager = recyclerView.layoutManager as LinearLayoutManager
@@ -541,6 +551,23 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         activeCandNo = 0
         mCandidatesAdapter.activeCandidates(activeCandNo)
         mCandidatesAdapter.notifyChanged()
+        mRVCandidates.post { updatePartialCandidateVisibility() }
+    }
+
+    /**
+     * 浮窗候选行只有 3/4 宽度，最后一个候选常常只露出一两笔。
+     * 只显示完整候选，右缘的这一小截先隐去；横向滚动到完整后再出现。
+     */
+    private fun updatePartialCandidateVisibility() {
+        if (!::mRVCandidates.isInitialized) return
+        val floating = instance.keyboardModeFloat
+        val edge = mRVCandidates.width - mRVCandidates.paddingRight
+        for (index in 0 until mRVCandidates.childCount) {
+            val child = mRVCandidates.getChildAt(index)
+            val partialRight = floating && mRVCandidates.width > 0 &&
+                child.right > edge && child.left < edge
+            child.visibility = if (partialRight) View.INVISIBLE else View.VISIBLE
+        }
     }
 
     /**

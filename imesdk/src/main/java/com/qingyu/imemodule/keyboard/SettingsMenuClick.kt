@@ -10,6 +10,7 @@ import com.qingyu.imemodule.prefs.behavior.SkbMenuMode
 import com.qingyu.imemodule.prefs.behavior.SymbolMode
 import com.qingyu.imemodule.singleton.EnvironmentSingleton
 import com.qingyu.imemodule.utils.AppUtil
+import com.qingyu.imemodule.utils.FeedbackInfo
 import com.qingyu.imemodule.utils.KeyboardLoaderUtil
 import com.qingyu.imemodule.keyboard.container.CandidatesContainer
 import com.qingyu.imemodule.keyboard.container.ClipBoardContainer
@@ -148,6 +149,10 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
             InputModeSwitcher.switchModeForUserKey(
                 if(InputModeSwitcher.isTextEditSkb) InputModeSwitcher.USER_KEYCODE_RETURN
                 else InputModeSwitcher.USER_KEYCODE_TEXTEDIT)
+        }
+        SkbMenuMode.FeedbackInfo -> {
+            inputView.insertFeedbackInfo(FeedbackInfo.build(inputView.context))
+            KeyboardManager.instance.switchKeyboard()
         }
         else ->{}
     }

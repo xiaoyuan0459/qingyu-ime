@@ -34,6 +34,7 @@ enum class SkbMenuMode {
     CloseSKB,
     Emojicon,
     Emoticon,
+    FeedbackInfo,
     TextEdit;
 
     companion object : ManagedPreference.StringLikeCodec<SkbMenuMode> {

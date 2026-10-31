@@ -81,6 +81,9 @@ class KeyRecordStack {
                 record.toString() == keys[j].toString() && record is InputKey.T9Key && !record.consumed
             }
         }
+        // 前缀列表可能已经过期，当前按键栈里找不到对应编码时放弃这次选词，
+        // 不能拿 -1 去 removeAt（vivo Android 11 崩溃日志：length=20, index=-1）。
+        if (index < 0) return null
         repeat(keys.size) {
             keyRecords.removeAt(index)
         }
