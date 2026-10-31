@@ -314,8 +314,11 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
             mPaint.setTypeface(Typeface.DEFAULT)
             if(skbStyleMode == SkbStyleMode.Samsung)mPaint.alpha = 128
             mPaint.textSize = mNormalKeyTextSizeSmall.toFloat()
+            // 角标多是「～！＠＃」这类标点，同样按墨迹水平居中，否则在键面上偏一侧。
+            mPaint.getTextBounds(keyLabelSmall, 0, keyLabelSmall.length, mLabelBounds)
             val x = when(prefs.skbStyleMode.getValue()){
-                SkbStyleMode.Qingyu -> softKey.mLeft + (softKey.width() - mPaint.measureText(keyLabelSmall)) / 2.0f
+                SkbStyleMode.Qingyu -> softKey.mLeft + softKey.width() / 2.0f -
+                    (mLabelBounds.left + mLabelBounds.right) / 2.0f
                 SkbStyleMode.Samsung -> softKey.mRight - mPaint.measureText(keyLabelSmall) - keyXMargin * 2
                 SkbStyleMode.Google -> softKey.mRight - mPaint.measureText(keyLabelSmall) - keyXMargin * 2
             }
@@ -406,17 +409,19 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
             val availableWidth = softKey.width() * 0.88f
             val labelWidth = mPaint.measureText(keyLabel)
             if (labelWidth > availableWidth) mPaint.textSize *= availableWidth / labelWidth
-            val x = softKey.mLeft + (softKey.width() - mPaint.measureText(keyLabel)) / 2.0f
+            // 功能帽按墨迹居中：ascent/descent 与前进宽度量的都是字身框，「，」「。」
+            // 这类字形贴着基线又偏字身左侧，按框居中会沉底偏左（参考输入法是视觉居中）。
+            if (functional) mPaint.getTextBounds(keyLabel, 0, keyLabel.length, mLabelBounds)
+            val x = if (functional) {
+                softKey.mLeft + softKey.width() / 2.0f - (mLabelBounds.left + mLabelBounds.right) / 2.0f
+            } else {
+                softKey.mLeft + (softKey.width() - mPaint.measureText(keyLabel)) / 2.0f
+            }
             val y = when {
                 // 角标画出来时主字母上移，角标沉底
                 symbolShown -> softKey.mTop + weightHeigth * 2.1f
-                // 功能帽按墨迹居中：ascent/descent 居中的是字体框，「，」「。」字形贴着基线，
-                // 实测被压到键底以下 23px（参考输入法只低 9px），变成看起来没对齐。
-                functional -> {
-                    mPaint.getTextBounds(keyLabel, 0, keyLabel.length, mLabelBounds)
-                    (softKey.mTop + softKey.mBottom) / 2.0f -
-                        (mLabelBounds.top + mLabelBounds.bottom) / 2.0f
-                }
+                functional -> (softKey.mTop + softKey.mBottom) / 2.0f -
+                    (mLabelBounds.top + mLabelBounds.bottom) / 2.0f
                 else -> {
                     val metrics = mPaint.fontMetrics
                     (softKey.mTop + softKey.mBottom) / 2.0f - (metrics.ascent + metrics.descent) / 2f

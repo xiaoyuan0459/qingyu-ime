@@ -53,7 +53,11 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
     private val theme = ThemeManager.activeTheme
     private val grid = RecyclerView(context)
     private val left = RecyclerView(context)
-    private val leftColumn = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    // 左列与候选格同为键面底色，只有右侧操作列是浅灰底（对齐参考展开面板）。
+    private val leftColumn = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        setBackgroundColor(ThemeManager.activeTheme.keyBackgroundColor)
+    }
     private val gridFrame = FrameLayout(context)
     private val status = TextView(context).apply {
         textSize = 15f
