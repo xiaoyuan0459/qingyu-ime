@@ -7,8 +7,8 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.view.ViewCompat
 import com.qingyu.imemodule.R
@@ -30,22 +30,6 @@ internal class ClipboardActionMenu(private val context: Context, private val inp
         val hostHeight = host.height
         if (hostWidth <= 0 || hostHeight <= 0) return
         val margin = context.dp(4)
-        val row = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            actions.forEach { (title, action) ->
-                addView(TextView(context).apply {
-                    text = title
-                    textSize = 16f
-                    maxLines = 1
-                    minHeight = context.dp(48)
-                    gravity = Gravity.CENTER
-                    setTextColor(activeTheme.keyTextColor)
-                    setPadding(context.dp(6), context.dp(8), context.dp(6), context.dp(8))
-                    background = keyboardItemBackground(context)
-                    setOnClickListener { dismiss(); action() }
-                })
-            }
-        }
         val card = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
@@ -53,39 +37,52 @@ internal class ClipboardActionMenu(private val context: Context, private val inp
                 cornerRadius = context.dp(16).toFloat()
             }
             isClickable = true
-            setPadding(context.dp(4), context.dp(4), context.dp(4), context.dp(4))
+            setPadding(context.dp(6), context.dp(6), context.dp(6), context.dp(6))
             elevation = context.dp(8).toFloat()
             if (message != null) addView(TextView(context).apply {
                 text = message
                 textSize = 16f
                 setTextColor(activeTheme.keyTextColor)
-                setPadding(context.dp(16), context.dp(12), context.dp(16), context.dp(8))
+                setPadding(context.dp(14), context.dp(12), context.dp(14), context.dp(8))
             })
-            addView(HorizontalScrollView(context).apply {
-                isHorizontalScrollBarEnabled = false
-                addView(row, ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            actions.forEach { (title, action) ->
+                addView(TextView(context).apply {
+                    text = title
+                    textSize = 16f
+                    maxLines = 1
+                    minHeight = context.dp(48)
+                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                    setTextColor(activeTheme.keyTextColor)
+                    setPadding(context.dp(20), context.dp(10), context.dp(20), context.dp(10))
+                    background = keyboardItemBackground(context)
+                    setOnClickListener { dismiss(); action() }
+                }, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 ))
-            }, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+        }
+        // 竖向动作卡：宽度对齐搜狗约 3/4，高度超出键盘区域时在卡片内滚动。
+        val maxCardWidth = minOf((hostWidth * 0.75f).toInt(), context.dp(320))
+        val maxCardHeight = (hostHeight - 2 * margin).coerceAtLeast(context.dp(48))
+        card.measure(
+            View.MeasureSpec.makeMeasureSpec(maxCardWidth, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(maxCardHeight, View.MeasureSpec.AT_MOST)
+        )
+        val availableWidth = (hostWidth - 2 * margin).coerceAtLeast(1)
+        val cardWidth = maxCardWidth.coerceIn(1, availableWidth)
+        val cardHeight = card.measuredHeight.coerceIn(1, maxCardHeight)
+        val scroll = ScrollView(context).apply {
+            isVerticalScrollBarEnabled = false
+            addView(card, ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ))
         }
-        // 先量出内容的真实宽高，再决定卡片贴哪一侧、是否贴边收窄。
-        card.measure(
-            View.MeasureSpec.makeMeasureSpec((hostWidth - 2 * margin).coerceAtLeast(1), View.MeasureSpec.AT_MOST),
-            View.MeasureSpec.makeMeasureSpec((hostHeight - 2 * margin).coerceAtLeast(1), View.MeasureSpec.AT_MOST)
-        )
-        // 真机搜狗长按卡片约占可用宽度的 3/4；横向动作在不改变卡片宽度的前提下滚动。
-        val maxCardWidth = minOf((hostWidth * 0.75f).toInt(), context.dp(320))
-        val cardWidth = card.measuredWidth.coerceIn(1, hostWidth - 2 * margin)
-            .coerceAtMost(maxCardWidth)
-        val cardHeight = card.measuredHeight.coerceIn(1, hostHeight - 2 * margin)
         val (left, top) = placeCard(host, anchor, cardWidth, cardHeight, hostWidth, hostHeight)
         val root = FrameLayout(context).apply {
             setBackgroundColor(0x66000000)
             isFocusableInTouchMode = true
             setOnClickListener { dismiss() }
-            addView(card, FrameLayout.LayoutParams(cardWidth, cardHeight).apply {
+            addView(scroll, FrameLayout.LayoutParams(cardWidth, cardHeight).apply {
                 leftMargin = left
                 topMargin = top
             })
