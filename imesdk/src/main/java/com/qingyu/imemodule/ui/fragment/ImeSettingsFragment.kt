@@ -10,6 +10,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceGroup
 import com.qingyu.imemodule.R
 import com.qingyu.imemodule.application.CustomConstant
+import com.qingyu.imemodule.ui.dialog.KeyboardFeedbackDialog
 import com.qingyu.imemodule.ui.fragment.base.CsPreferenceFragment
 import com.qingyu.imemodule.ui.navigation.navigateWithSettingsMotion
 import com.qingyu.imemodule.ui.setup.SetupActivity
@@ -77,11 +78,12 @@ class ImeSettingsFragment : CsPreferenceFragment() {
                 R.id.action_settingsFragment_to_themeSettingsFragment,
                 R.string.settings_summary_theme
             )
-            addDestinationPreference(
+            addPreference(
                 R.string.keyboard_feedback,
-                R.id.action_settingsFragment_to_keyboardFeedbackFragment,
                 R.string.settings_summary_keyboard_feedback
-            )
+            ) {
+                KeyboardFeedbackDialog.show(requireContext())
+            }
             addDestinationPreference(
                 R.string.setting_ime_keyboard,
                 R.id.action_settingsFragment_to_keyboardSettingFragment,
