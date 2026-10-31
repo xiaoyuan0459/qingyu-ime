@@ -2,6 +2,8 @@ package com.qingyu.imemodule.keyboard.container
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.TextUtils
@@ -10,7 +12,9 @@ import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.qingyu.imemodule.R
 import com.qingyu.imemodule.adapter.ClipBoardAdapter
 import com.qingyu.imemodule.data.theme.ThemeManager.activeTheme
@@ -44,6 +48,23 @@ import splitties.views.textResource
 class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer(context, inputView) {
     override val chromeInBar: Boolean get() = true
     private val mRVSymbolsView: SwipeRecyclerView = SwipeRecyclerView(context)
+    // 1px 子 View 分隔线在 RecyclerView 里不显示，改用 ItemDecoration 画在条目底部。
+    private val dividerDecoration = object : RecyclerView.ItemDecoration() {
+        private val paint = Paint().apply {
+            color = ColorUtils.setAlphaComponent(activeTheme.keyTextColor, 36)
+            strokeWidth = 1f
+        }
+
+        override fun onDrawOver(canvas: Canvas, parent: RecyclerView, state: RecyclerView.State) {
+            val inset = dp(16)
+            for (index in 0 until parent.childCount) {
+                val child = parent.getChildAt(index)
+                if (parent.getChildAdapterPosition(child) == RecyclerView.NO_POSITION) continue
+                val y = child.bottom - 1f
+                canvas.drawLine((child.left + inset).toFloat(), y, (child.right - inset).toFloat(), y, paint)
+            }
+        }
+    }
     private var mTVLable: TextView? = null
     private var itemMode:SkbMenuMode? = null
     private var splitPanel: ClipboardSplitPanel? = null
@@ -171,6 +192,7 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
             textSize = instance.candidateTextSize
         }
         mRVSymbolsView.setItemAnimator(null)
+        mRVSymbolsView.addItemDecoration(dividerDecoration)
         val layoutParams2 = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
         mRVSymbolsView.layoutParams = layoutParams2
         val root = android.widget.LinearLayout(context).apply {
