@@ -26,8 +26,16 @@ internal class ComposingBubble(context: Context, private val tabShape: Boolean =
 
     init {
         visibility = GONE
-        setPadding(dp(10), dp(4), dp(10), dp(4))
-        addView(label, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+        if (tabShape) {
+            // 展开面板顶带：标签贴左缘，文字靠近面板上沿，像搜狗一样从灰色顶带里探出白色标签块。
+            setPadding(dp(16), 0, dp(20), dp(8))
+            addView(label, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.BOTTOM or Gravity.START
+            })
+        } else {
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            addView(label, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+        }
     }
 
     fun updateTextSize(sizePx: Float) = label.setTextSize(TypedValue.COMPLEX_UNIT_PX, sizePx)

@@ -61,18 +61,17 @@ class CandidatePanelState {
     /**
      * 当前候选里出现过的不同**首音节读音**（最多 [limit] 个），按引擎顺序去重。
      *
-     * 读音取候选注释（引擎给出的实际拼写）的第一段，只保留「输入字母以它开头」的，
-     * 这样联想词、整句和完全不相关的纠错候选不会混进左列。
+     * 读音取候选注释（引擎给出的实际拼写）的第一段。搜狗展开面板的左列列出的是
+     * 候选实际覆盖的读音（含纠错/别读，如 `nihao` 下的 li、hao），而不是组合串
+     * 本身的机械分段；这里按同一口径收集，点选后仍沿用同读音过滤。
      * 少于两个读音时没有必要给左列，调用方应回退到原来的音节表。
      */
     fun spellings(source: List<Candidate>, composition: String, limit: Int = 16): List<String> {
-        val typed = composition.filter { it.isLetter() }.lowercase()
-        if (typed.isEmpty()) return emptyList()
+        if (composition.none { it.isLetter() }) return emptyList()
         return source.asSequence()
             .map { it.comment }
-            .filter { it.isNotEmpty() }
-            .map { it.substringBefore(SEPARATOR) }
-            .filter { it.isNotEmpty() && typed.startsWith(it.lowercase()) }
+            .map { it.substringBefore(SEPARATOR).lowercase() }
+            .filter { it.isNotEmpty() && it.all { ch -> ch in 'a'..'z' } }
             .distinct()
             .take(limit)
             .toList()
