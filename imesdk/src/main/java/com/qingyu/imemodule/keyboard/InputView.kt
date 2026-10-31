@@ -842,11 +842,10 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     }
 
     fun updateCandidateBar() {
-        // 注音气泡悬浮在键盘区上方；展开候选面板自行呈现组合信息，不叠气泡。
+        // 注音标签悬浮在键盘区上方，展开候选面板时继续复用它，只换标签下方的面板内容。
         val composing = DecodingInfo.handwritingCompositionPinyin ?: DecodingInfo.composingStrForDisplay.toString()
         val display = composing + (DecodingInfo.pendingPunctuation ?: "")
-        val bubbleVisible = display.isNotEmpty() && !UserDataManager.isInputPaused &&
-            KeyboardManager.instance.currentContainer !is CandidatesContainer
+        val bubbleVisible = display.isNotEmpty() && !UserDataManager.isInputPaused
         mComposingBubble.visibility = if (bubbleVisible) VISIBLE else GONE
         if (bubbleVisible) mComposingBubble.bind(display, EnvironmentSingleton.instance.skbWidth / 2)
         val clipboardContainer = KeyboardManager.instance.currentContainer
