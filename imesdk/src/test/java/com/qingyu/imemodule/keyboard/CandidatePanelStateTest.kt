@@ -55,7 +55,7 @@ class CandidatePanelStateTest {
         assertTrue(state.strokeCodes.isEmpty())
     }
 
-    @Test fun readingsListKeepsOnlyFirstSyllablesThatMatchTheTypedLetters() {
+    @Test fun readingsListCoversFirstSyllablesOfVisibleCandidates() {
         val mixed = listOf(
             Candidate("ni'hao", "你好"),
             Candidate("li'hao", "利好"),
@@ -64,11 +64,12 @@ class CandidatePanelStateTest {
             Candidate("", "英文"),
         )
         val state = CandidatePanelState().apply { sync("ni'hao", 1) }
-        // 只保留「输入以它开头」的首音节；空注释与不相干的读音都排除，重复项去重。
-        assertEquals(listOf("ni"), state.spellings(mixed, "ni'hao"))
+        // 左列按候选实际读音收集（含纠错/别读），空注释与重复项排除。
+        assertEquals(listOf("ni", "li", "niu"), state.spellings(mixed, "ni'hao"))
         val fuzzy = mixed + Candidate("li'fa", "理发")
-        assertEquals(listOf("ni"), state.spellings(fuzzy, "ni'hao"))
-        assertEquals(listOf("li"), state.spellings(fuzzy, "li'hao"))
+        assertEquals(listOf("ni", "li", "niu"), state.spellings(fuzzy, "ni'hao"))
+        // 组合串没有字母时没有读音可列。
+        assertEquals(emptyList<String>(), state.spellings(fuzzy, ""))
     }
 
     @Test fun selectingAReadingFiltersTheGridAndSelectingItAgainRestores() {

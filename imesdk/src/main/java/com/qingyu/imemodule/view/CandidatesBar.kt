@@ -318,9 +318,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             )
             // 展开候选面板态：整行只放贴左缘的注音标签（与参考展开态顶带同形）
             mPanelBubble = ComposingBubble(context, tabShape = true).apply { visibility = GONE }
+            // 宽度随注音内容，高度铺满顶带，白底标签才只包住拼音而不是整行。
             mRowsContainer.addView(
                 mPanelBubble,
-                LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT)
             )
             this.addView(mRowsContainer, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         }
@@ -673,6 +674,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     fun updateTheme(textColor: Int) {
         initMenuView()
         initCandidateView()
+        if (::mPanelBubble.isInitialized) {
+            mPanelBubble.updateTheme(textColor)
+            mPanelBubble.updateTextSize(instance.composingTextSizePx)
+        }
         mIvMenuSetting.setImageResource(R.drawable.sdk_level_candidates_menu_left)
         // 候选行右侧的三角/收起图标按参考输入法走功能灰，不是键帽深色。
         mRightArrowBtn.drawable.setTint(functionalTextColor(0.70f))

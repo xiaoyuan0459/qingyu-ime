@@ -26,6 +26,14 @@ class CandidatesAdapter(private val context: Context) :
     private val textColor: Int = activeTheme.keyTextColor
     private var mOnItemClickListener: OnRecyclerItemClickListener? = null
     private var entries: List<CandidatePanelState.Entry> = emptyList()
+    private var cellHeight = 0
+
+    /** 展开面板按整行数均分高度，行高一致且底部不会露出半行。 */
+    fun setCellHeight(px: Int) {
+        if (px <= 0 || px == cellHeight) return
+        cellHeight = px
+        notifyDataSetChanged()
+    }
     fun submitEntries(value: List<CandidatePanelState.Entry>) {
         entries = value
         notifyDataSetChanged()
@@ -42,6 +50,13 @@ class CandidatesAdapter(private val context: Context) :
     }
 
     override fun onBindViewHolder(holder: SymbolHolder, position: Int) {
+        if (cellHeight > 0) {
+            val params = holder.itemView.layoutParams
+            if (params.height != cellHeight) {
+                params.height = cellHeight
+                holder.itemView.layoutParams = params
+            }
+        }
         holder.textView.text = entries[position].text
         holder.textView.setTextColor(textColor)
         holder.textView.setOnClickListener { view: View? ->
