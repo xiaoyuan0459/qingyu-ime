@@ -348,7 +348,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val clipboardLayoutCompact = list(
             R.string.clipboard_layout_compact_mode,
             "clipboard_layout_mode",
-            ClipboardLayoutMode.GridView,
+            ClipboardLayoutMode.ListView,
             ClipboardLayoutMode,
             listOf(
                 ClipboardLayoutMode.ListView,
