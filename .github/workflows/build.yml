@@ -6,6 +6,19 @@ name: Build and check
     branches: [main, master]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      publish_tag:
+        description: 'Attach a locally signed APK to this draft tag (empty runs the normal build)'
+        type: string
+        default: ''
+      source_run_id:
+        description: 'Successful tag build containing the unsigned APK'
+        type: string
+        default: ''
+      signed_apk_sha256:
+        description: 'SHA-256 of the locally verified signed APK'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -16,6 +29,7 @@ concurrency:
 
 jobs:
   android:
+    if: github.event_name != 'workflow_dispatch' || inputs.publish_tag == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     env:
@@ -86,6 +100,7 @@ jobs:
           python -B tools/test_ime_evaluation.py
           python -B tools/test_freq_chat_partitions.py
           python -B tools/test_rime_source_provenance.py
+          python -B tools/test_signed_apk_delta.py
           chmod +x gradlew
           ./gradlew :app:assembleOfflineDebug :imesdk:testOfflineDebugUnitTest :imesdk:lintOfflineDebug :app:lintOfflineDebug --max-workers=2 --warning-mode=all
           mkdir -p dist
@@ -136,3 +151,97 @@ jobs:
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
               --title "$TAG" --draft --prerelease --generate-notes
           fi
+
+  # Transfer public signature data instead of uploading private keys or the full APK.
+  # SignRelease.java verifies local signing first; the relay must reproduce those exact bytes.
+  attach-signed-apk:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_tag != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ inputs.publish_tag }}
+      SOURCE_RUN: ${{ inputs.source_run_id }}
+      APK_SHA: ${{ inputs.signed_apk_sha256 }}
+    steps:
+      - name: Checkout publishing tools
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up JDK 21
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          java-version: '21'
+          distribution: temurin
+      - name: Verify draft tag and successful source build
+        id: source
+        run: |
+          python - <<'PY'
+          import os, re
+          assert re.fullmatch(r'v[0-9][A-Za-z0-9._-]*', os.environ['TAG']), 'Invalid tag'
+          assert re.fullmatch(r'[0-9]+', os.environ['SOURCE_RUN']), 'Invalid source run'
+          assert re.fullmatch(r'[0-9a-f]{64}', os.environ['APK_SHA']), 'Invalid APK SHA-256'
+          PY
+          mkdir -p relay
+          gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq '.sha' > relay/source-sha.txt
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" > relay/run.json
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft > relay/release.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          sha = Path('relay/source-sha.txt').read_text().strip()
+          run = json.loads(Path('relay/run.json').read_text())
+          assert run['head_sha'] == sha, 'Source build differs from tag'
+          assert run['status'] == 'completed' and run['conclusion'] == 'success', 'Source build not successful'
+          assert run['event'] == 'push' and run['head_branch'] == os.environ['TAG'], 'Not a tag build'
+          assert run['path'] == '.github/workflows/build.yml', 'Unexpected source workflow'
+          assert json.loads(Path('relay/release.json').read_text())['isDraft'], 'Release must remain a draft during relay'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'sha={sha}\n')
+          PY
+      - name: Prepare APK verification tools
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          cmdline-tools-version: '12266719'
+          log-accepted-android-sdk-licenses: false
+          packages: 'build-tools;37.0.0'
+      - name: Restore and verify signed APK
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name "android-build-$SOURCE_SHA" --dir relay/input
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern signature-delta.json.gz --dir relay
+          unsigned_apk=$(python - <<'PY'
+          from pathlib import Path
+          apks = list(Path('relay/input').rglob('*-release-unsigned.apk'))
+          assert len(apks) == 1, 'Expected one unsigned Release APK'
+          print(apks[0])
+          PY
+          )
+          signed_apk="relay/qingyu-ime-$TAG-arm64-v8a.apk"
+          python tools/signed-apk-delta.py restore "$unsigned_apk" relay/signature-delta.json.gz "$signed_apk" --sha256 "$APK_SHA"
+          "$ANDROID_HOME/build-tools/37.0.0/zipalign" -c -P 16 4 "$signed_apk"
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs "$signed_apk" > relay/signature.log
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          cert = re.search(r'certificate SHA-256 digest: ([a-f0-9]+)', Path('relay/signature.log').read_text()).group(1)
+          assert cert == '8c1ba7bdf1d6d608fc806913ec2fc1efa72a6bdff94fecad2a7f7c3b29eb5a3d', 'Unexpected release certificate'
+          PY
+      - name: Attach verified APK and remove relay data
+        run: |
+          signed_apk="relay/qingyu-ime-$TAG-arm64-v8a.apk"
+          gh release upload "$TAG" "$signed_apk" --repo "$GITHUB_REPOSITORY"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets > relay/assets.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          name = f"qingyu-ime-{os.environ['TAG']}-arm64-v8a.apk"
+          asset = next(a for a in json.loads(Path('relay/assets.json').read_text())['assets'] if a['name'] == name)
+          assert asset['state'] == 'uploaded' and asset['digest'] == 'sha256:' + os.environ['APK_SHA'], 'Release asset digest mismatch'
+          PY
+          gh release delete-asset "$TAG" signature-delta.json.gz --repo "$GITHUB_REPOSITORY" --yes
+          echo "Verified signed APK attached to draft Release $TAG. Publish after reviewing its notes and checksums." >> "$GITHUB_STEP_SUMMARY"
