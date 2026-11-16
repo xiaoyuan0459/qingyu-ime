@@ -20,6 +20,8 @@
     <color name="pref_accent">#FF1368FB</color>
     <!-- 开关关闭态轨道 -->
     <color name="pref_switch_track_off">#FFE5E5E5</color>
+    <!-- 参考魅族系统开关：开启态是主色 24% 叠加白底后的浅蓝，不是饱和主色 -->
+    <color name="pref_switch_track_on">#FFC4D9FE</color>
     <!-- 滑条未走过的那段轨道 -->
     <color name="pref_slider_track_inactive">#FFF0F0F0</color>
     <!-- 发丝分隔线：应用栏底部通栏一条，分组之间内缩一条 -->

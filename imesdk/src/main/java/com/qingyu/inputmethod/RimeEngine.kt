@@ -46,7 +46,7 @@ object RimeEngine {
         CustomConstant.SCHEMA_ZH_DOUBLE_LX17
     )
 
-    /** 已打开的模糊音组名，见 [FuzzySpellingGate]；librime 挡不住 algebra，只能在装配候选时挡。 */
+    /** 已打开的模糊音组名；同步原生生成策略，并保留 [FuzzySpellingGate] 的展示边界校验。 */
     private var enabledFuzzyGroups: Set<String> = emptySet()
 
     /** 拼写纠错开关，见 [SpellingCorrectionGate]；关掉时挡掉只靠相邻键纠错才拼得出的候选。 */
@@ -57,10 +57,15 @@ object RimeEngine {
 
     fun setFuzzyGroups(groups: Set<String>) {
         enabledFuzzyGroups = groups
+        val names = listOf("zh_z", "n_l", "f_h", "nasal")
+        RimeSession.setFuzzySpellingGroups(names.withIndex().fold(0) { mask, (index, name) ->
+            if (name in groups) mask or (1 shl index) else mask
+        })
     }
 
     fun setSpellingCorrection(enabled: Boolean) {
         spellingCorrection = enabled
+        RimeSession.setSpellingCorrectionEnabled(enabled)
     }
 
     /**
@@ -75,7 +80,9 @@ object RimeEngine {
     ): List<Candidate> {
         val parsedTyped = FuzzySpellingGate.parseTyped(typed)
         val visible = page.mapIndexedNotNull { offset, candidate ->
-            if (!FuzzySpellingGate.keeps(candidate.comment, parsedTyped, enabledFuzzyGroups, encode)) {
+            if (candidate.isSpellingCorrection && !spellingCorrection) {
+                null
+            } else if (!candidate.isSpellingCorrection && !FuzzySpellingGate.keeps(candidate.comment, parsedTyped, enabledFuzzyGroups, encode)) {
                 null
             } else if (!SpellingCorrectionGate.keeps(candidate.comment, parsedTyped, spellingCorrection, encode)) {
                 null
@@ -87,7 +94,11 @@ object RimeEngine {
         val ordered = CandidateSpellingRanker.reorder(
             visible, parsedTyped, enabledFuzzyGroups, encode, spellingCorrection
         )
-        return suppressSingleCharacterCompletions(ordered, parsedTyped.compact, encode)
+        // 显示边界：滤掉字体画不出来的单字（展开面板里的空白格），并把 emoji 变体排到
+        // 汉字之后。两步都不改 engineIndex，选词仍按引擎全局下标回传。
+        return CandidateDisplayPolicy.arrange(
+            suppressSingleCharacterCompletions(ordered, parsedTyped.compact, encode)
+        )
     }
 
     /**
@@ -178,6 +189,22 @@ object RimeEngine {
         updateCandidatesOrCommitText()
     }
 
+    /**
+     * 把当前组合串整体替换成一个读音（展开面板左列的邻键/简拼读音）。
+     *
+     * `replaceInput` 会把新串重新送进引擎；按键记录栈清掉后补一个空动作，
+     * 让 [isFinish] 保持 false（否则选词会走手写分支），退格则落到引擎 BackSpace。
+     * 替换失败（组合已变化）时返回 null，UI 保持原状。
+     */
+    fun replaceReading(reading: String): String? {
+        val current = RimeSession.compositionText
+        if (current.isEmpty() || reading.isEmpty()) return null
+        if (!RimeSession.replaceInput(0, current.length, reading)) return null
+        keyRecordStack.clear()
+        keyRecordStack.pushCandidateSelectAction()
+        return updateCandidatesOrCommitText()
+    }
+
     /** [engineIndex] 为引擎全局下标，取自展示候选的 [Candidate.engineIndex]，不是展示位。 */
     fun selectCandidate(engineIndex: Int): String? {
         RimeSession.selectCandidate(engineIndex)
@@ -248,8 +275,11 @@ object RimeEngine {
         fun appendAssociate(from: Int, until: Int) {
             for (i in from until until) {
                 val word = words.getOrNull(i) ?: continue
-                // 前缀那个字已经上屏，候选只展示续接部分（「原」→ 来 / 生）
-                list.add(Candidate("", word.removePrefix(associatePrefixChar.toString())))
+                // 前缀那个字已经上屏，候选只展示续接部分（「原」→ 来 / 生）。
+                // 去掉前缀后为空（联想词就是那个字）时跳过，不能留一个空候选。
+                val suffix = word.removePrefix(associatePrefixChar.toString())
+                if (suffix.isEmpty()) continue
+                list.add(Candidate("", suffix))
                 indexMap.add(i)
             }
         }
@@ -258,6 +288,7 @@ object RimeEngine {
         // 标点联动：默认关闭，由设置项控制
         if (AppPrefs.getInstance().input.chinesePredictionPunctuation.getValue()) {
             CustomEngine.predictAssociationWordsChinese(text).forEach {
+                if (it.isBlank()) return@forEach
                 list.add(Candidate("", it))
                 indexMap.add(-1)
             }
@@ -355,6 +386,7 @@ object RimeEngine {
         showCandidates = when {
             compositionText.isNotBlank() -> {
                 val phrase = CustomEngine.processPhrase(compositionText.replace("\'", ""))
+                    .filter { it.isNotBlank() }.toMutableList()
                 if(InputModeSwitcher.isEnglish && StringUtils.isLetter(compositionText) &&
                     !compositionText.equals(candidates.first().text, ignoreCase = true) ){
                     phrase.add(0, compositionText)

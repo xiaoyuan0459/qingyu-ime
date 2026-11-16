@@ -15,6 +15,7 @@ import com.qingyu.imemodule.adapter.PrefixAdapter
 import com.qingyu.imemodule.data.theme.ThemeManager
 import com.qingyu.imemodule.database.ImeDataRepository
 import com.qingyu.imemodule.database.entry.SideSymbol
+import com.qingyu.imemodule.database.entry.UsedSymbol
 import com.qingyu.imemodule.entity.keyboard.SoftKey
 import com.qingyu.imemodule.manager.InputModeSwitcher
 import com.qingyu.imemodule.service.DecodingInfo
@@ -28,6 +29,7 @@ import com.qingyu.imemodule.keyboard.HandwritingKeyboard
 import com.qingyu.imemodule.libs.recyclerview.SwipeRecyclerView
 import splitties.dimensions.dp
 import splitties.views.dsl.core.margin
+import kotlin.math.max
 
 /**
  * 九宫格键盘容器
@@ -45,6 +47,11 @@ open class T9TextContainer(context: Context?, inputView: InputView, skbValue: In
     private var sideColumnHeight = 0
     private var cachedSymbolsKey: String? = null
     private var cachedSymbols: List<SideSymbol> = emptyList()
+    // 进入键盘后接收最近符号的异步更新；选择左列后保持排列到下次显示或布局重建。
+    // 常用面板仍读实时最近列表。
+    private var leftPinyinSymbols: List<SideSymbol> = emptyList()
+    // 面板关闭后的写库可能晚到；持续跟随快照，直到用户选左列符号后冻结本次排列。
+    private var followLeftPinyinUpdates = true
     private val mSideSymbolsPinyin:List<SideSymbol>
         get() {
             val key = when {
@@ -52,16 +59,28 @@ open class T9TextContainer(context: Context?, inputView: InputView, skbValue: In
                 InputModeSwitcher.isPhoneEditor -> "number_phone"
                 else -> "number"
             }
+            if (key == "pinyin") return leftPinyinSymbols
             if (key == cachedSymbolsKey) return cachedSymbols
             val symbols = if (key == "number_phone") {
                 listOf("+", "*", "#").map { SideSymbol(it, it, "number") }
             } else {
-                ImeDataRepository.sideSymbols(if (key == "number") "number" else "pinyin")
+                ImeDataRepository.sideSymbols("number")
             }
             cachedSymbolsKey = key
             cachedSymbols = symbols
             return symbols
         }
+
+    /** 最近使用优先；无记录时回落到设置自定义列表，有记录时用自定义列表补足 4 格。 */
+    private fun refreshLeftPinyin() {
+        val seed = ImeDataRepository.sideSymbols("pinyin")
+        val recent = ImeDataRepository.recentSymbols().map { it.symbol }.distinct()
+        leftPinyinSymbols = if (recent.isEmpty()) {
+            seed
+        } else {
+            (recent + seed.map { it.symbolValue }).distinct().take(4).map { SideSymbol(it, it, "pinyin") }
+        }
+    }
     // 键盘、候选词界面上符号(T9左侧、手写右侧)、候选拼音ListView
     private val mRVLeftPrefix : SwipeRecyclerView = inflate(getContext(), R.layout.sdk_view_rv_prefix, null) as SwipeRecyclerView
     private val mLlAddSymbol : LinearLayout = LinearLayout(context).apply{
@@ -72,6 +91,7 @@ open class T9TextContainer(context: Context?, inputView: InputView, skbValue: In
 
     init {
         mSkbValue = skbValue
+        refreshLeftPinyin()
         val ivAddSymbol = ImageView(context).apply {
             setPadding(dp(5))
             setImageResource(R.drawable.ic_menu_setting)
@@ -89,6 +109,8 @@ open class T9TextContainer(context: Context?, inputView: InputView, skbValue: In
      * 更新软键盘布局
      */
     override fun updateSkbLayout() {
+        followLeftPinyinUpdates = true
+        refreshLeftPinyin()
         if (null == mMajorView) {
             mMajorView = HandwritingKeyboard(context)
             val params = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
@@ -104,7 +126,20 @@ open class T9TextContainer(context: Context?, inputView: InputView, skbValue: In
     override fun onDataChanged() {
         // 侧栏符号可在设置里改；仓库快照更新后丢掉本容器的副本
         cachedSymbolsKey = null
+        if (followLeftPinyinUpdates) {
+            refreshLeftPinyin()
+        }
         updateSymbolListView()
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        // 返回键盘时重新跟随数据；左列连续选择产生的修订保持当前格子排列。
+        if (visibility == VISIBLE) {
+            followLeftPinyinUpdates = true
+            refreshLeftPinyin()
+            updateSymbolListView()
+        }
     }
 
     // 更新键盘上侧边符号列表
@@ -175,6 +210,14 @@ open class T9TextContainer(context: Context?, inputView: InputView, skbValue: In
                     // 播放按键声音和震动
                     DevicesUtils.tryPlayKeyDown()
                     DevicesUtils.tryVibrate(this)
+                    if (mSkbValue != InputModeSwitcher.MASK_SKB_LAYOUT_NUMBER) {
+                        followLeftPinyinUpdates = false
+                        // 左列选择计入「常用」最近列表，与符号面板共用同一来源
+                        ImeDataRepository.mutate {
+                            usedSymbolDao().insert(UsedSymbol(symbol = symbol))
+                            usedSymbolDao().deleteOldest("symbol", max(usedSymbolDao().getCount("symbol") - 50, 0))
+                        }
+                    }
                     inputView.responseKeyEvent(softKey)
                 } else {
                     inputView.selectPrefix(position)

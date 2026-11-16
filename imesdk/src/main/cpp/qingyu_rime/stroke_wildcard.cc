@@ -53,8 +53,8 @@ std::vector<std::string> QueryStrokeWildcard(const std::string& pattern,
       CloseStrokeWildcardSession();
       return result;
     }
-    // 只读查询：不打开用户词库，避免与主会话争同一份 LevelDB。
-    RimeSetOption(session, "disable_user_dict", True);
+    // Read-only probe: block Memory commit/delete callbacks in this session.
+    RimeSetProperty(session, "qingyu_no_learning", "1");
     RimeSetOption(session, "traditionalization", False);
     // 通配结果由应用侧 SimplifiedText 统一转换；这里不要重复开引擎 t2s。
     RimeSetOption(session, "simplification", False);

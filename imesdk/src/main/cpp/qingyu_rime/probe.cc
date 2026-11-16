@@ -20,10 +20,13 @@
 //   qingyu_probe --codes <prism.bin> <table.bin> [<codes.txt | ->]
 //   qingyu_probe --entries <table.bin> <音节>
 //   qingyu_probe --words <table.bin> <音节> [<limit>]
+//   qingyu_probe --query <shared目录> <user目录> <方案> <码> [<limit>]
+//   qingyu_probe --replay <shared目录> <user目录> <方案> <动作文件 | ->
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <chrono>
 #include <string>
 #include <vector>
 
@@ -32,6 +35,8 @@
 #include <rime/dict/table.h>
 #include <rime_api.h>
 #include "native_script.h"
+#include "probe_replay.h"
+#include "probe_observation.h"
 
 namespace {
 
@@ -47,6 +52,8 @@ const char* SpellingTypeName(rime::SpellingType type) {
       return "completion";
     case rime::kAmbiguousSpelling:
       return "ambiguous";
+    case rime::kCorrectionSpelling:
+      return "correction";
     case rime::kInvalidSpelling:
       return "invalid";
   }
@@ -203,16 +210,24 @@ bool QueryCandidates(const char* shared_dir, const char* user_dir,
   const char* preedit = has_context && ctx.composition.preedit ? ctx.composition.preedit : "";
   std::printf("#schema\t%s\t#code\t%s\t#preedit\t%s\n", schema, code, preedit);
   if (has_context) {
-    const size_t count = static_cast<size_t>(ctx.menu.num_candidates);
-    for (size_t i = 0; i < count && i < limit; ++i) {
-      std::printf("%zu\t%s\t%s\n", i,
-                  ctx.menu.candidates[i].text ? ctx.menu.candidates[i].text : "",
-                  ctx.menu.candidates[i].comment ? ctx.menu.candidates[i].comment : "");
+    // menu 只含当前页；不翻页会把「深位」误判成「未生成」。
+    size_t printed = 0;
+    while (printed < limit) {
+      const size_t count = static_cast<size_t>(ctx.menu.num_candidates);
+      for (size_t i = 0; i < count && printed < limit; ++i, ++printed) {
+        std::printf("%zu\t%s\t%s\n", printed,
+                    ctx.menu.candidates[i].text ? ctx.menu.candidates[i].text : "",
+                    ctx.menu.candidates[i].comment ? ctx.menu.candidates[i].comment : "");
+      }
+      if (ctx.menu.is_last_page || count == 0) break;
+      rime->free_context(&ctx);
+      rime->process_key(session, 0xff56, 0);  // XK_Page_Down
+      if (rime->get_context(session, &ctx) == False) break;
     }
     std::printf("#page_size\t%d\t#page_no\t%d\t#last_page\t%d\n",
                 ctx.menu.page_size, ctx.menu.page_no, ctx.menu.is_last_page);
+    rime->free_context(&ctx);
   }
-  rime->free_context(&ctx);
   rime->destroy_session(session);
   rime->finalize();
   return has_context;
@@ -225,8 +240,9 @@ void Usage(const char* argv0) {
       "  %s --codes <prism.bin> <table.bin> [<codes.txt | -]\n"
       "  %s --entries <table.bin> <音节>\n"
       "  %s --words <table.bin> <音节> [<limit>]\n"
-      "  %s --query <shared目录> <user目录> <方案> <码> [<limit>]\n",
-      argv0, argv0, argv0, argv0, argv0);
+      "  %s --query <shared目录> <user目录> <方案> <码> [<limit>]\n"
+      "  %s --replay <shared目录> <user目录> <方案> <动作文件 | ->\n",
+      argv0, argv0, argv0, argv0, argv0, argv0);
 }
 
 }  // namespace
@@ -237,6 +253,8 @@ int main(int argc, char* argv[]) {
     return 2;
   }
   const std::string mode = argv[1];
+  if (mode == "--source-identity" && argc == 3)
+    return PrintSourceIdentity(argv[2]) ? 0 : 1;
   if (mode == "--syllabary" && argc == 3)
     return DumpSyllabary(argv[2]) ? 0 : 1;
   if (mode == "--entries" && argc == 4)
@@ -250,6 +268,18 @@ int main(int argc, char* argv[]) {
     const size_t limit =
         argc == 7 ? (size_t)strtoull(argv[6], nullptr, 10) : 30;
     return QueryCandidates(argv[2], argv[3], argv[4], argv[5], limit) ? 0 : 1;
+  }
+  if (mode == "--replay" && argc == 6) {
+    if (std::strcmp(argv[5], "-") == 0)
+      return ReplayActions(argv[2], argv[3], argv[4], stdin) ? 0 : 1;
+    FILE* input = std::fopen(argv[5], "r");
+    if (!input) {
+      std::fprintf(stderr, "打不开动作文件: %s\n", argv[5]);
+      return 1;
+    }
+    const bool ok = ReplayActions(argv[2], argv[3], argv[4], input);
+    std::fclose(input);
+    return ok ? 0 : 1;
   }
   if (mode == "--codes") {
     if (argc != 4 && argc != 5) {

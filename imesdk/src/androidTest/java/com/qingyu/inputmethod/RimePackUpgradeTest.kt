@@ -34,9 +34,13 @@ class RimePackUpgradeTest {
     private fun withPack(id: String, block: (ContextWrapper, RimePackStore) -> Unit) {
         RimeSession.stop()
         val base = InstrumentationRegistry.getInstrumentation().targetContext
-        val temporary = File(base.cacheDir, "pack-upgrade-${System.nanoTime()}").apply { mkdirs() }
+        // Android can reclaim cache files while this transaction is being
+        // verified. Match the production filesDir durability in an owned tree.
+        val temporary = File(base.filesDir, "test-pack-upgrade-${System.nanoTime()}").canonicalFile
+        check(temporary.parentFile == base.filesDir.canonicalFile)
+        check(temporary.mkdirs())
         val context = object : ContextWrapper(base) {
-            override fun getFilesDir() = File(temporary, "files").apply { mkdirs() }
+            override fun getFilesDir() = File(temporary, "files").apply { check(mkdirs() || isDirectory) }
         }
         try {
             val builtin = base.assets.open("rime-base.zip").use(RimePackArchive::readManifest)
@@ -63,7 +67,8 @@ class RimePackUpgradeTest {
             block(context, store)
         } finally {
             RimeSession.stop()
-            temporary.deleteRecursively()
+            check(temporary.canonicalFile.parentFile == base.filesDir.canonicalFile)
+            check(temporary.deleteRecursively())
         }
     }
 }

@@ -44,6 +44,8 @@ replay_pid*.log
 /docs/PROJECT_PLAN.md
 /docs/UI_DESIGN_PRINCIPLES.md
 /docs/*_IMPROVEMENTS.md
+/docs/DICTIONARY_CYIME_BENCHMARK.md
+/docs/DICTIONARY_REVIEW_AND_PLAN_IMPROVEMENTS.md
 /docs/TOOLBOX_TRANSITION_ANALYSIS.md
 /imesdk/docs/手写识别开源迁移实施计划.md
 /imesdk/docs/手写识别引擎替换方案.md
@@ -60,3 +62,9 @@ __pycache__/
 # 手写训练工具的本地状态：字体、数据集、模型、Python 环境，都不进仓库
 /tools/handwriting/.cache/
 /tools/handwriting/.venv/
+
+# Local evaluation corpora and planning are not release source inputs.
+/docs/DICTIONARY_CONTEXT_RANKING_D02.md
+/tools/fixtures/
+/tools/eval-cases-essay.tsv
+/tools/eval-cases-heldout-chat.tsv

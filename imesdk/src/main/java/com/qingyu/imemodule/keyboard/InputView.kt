@@ -66,8 +66,10 @@ import com.qingyu.inputmethod.CustomEngine
 import com.qingyu.inputmethod.HandwritingLearning
 import com.qingyu.inputmethod.HandwritingSampleDraft
 import com.qingyu.inputmethod.HandwritingSampleStore
+import com.qingyu.inputmethod.RimeEngine
 import com.qingyu.inputmethod.core.Candidate
 import com.qingyu.inputmethod.core.Kernel
+import com.qingyu.inputmethod.core.RimeSession
 import splitties.views.bottomPadding
 import splitties.views.rightPadding
 import kotlin.math.absoluteValue
@@ -576,7 +578,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         InputModeSwitcher.resetCharCase()
         val englishCellDisable = InputModeSwitcher.isEnglish && !appPrefs.input.abcSearchEnglishCell.getValue()
         return when {
-            editorContext?.allowsSuggestions == false -> processEnglishKey(event)
+            editorContext?.isPassword == true -> processEnglishKey(event)
             englishCellDisable -> processEnglishKey(event)
             InputModeSwitcher.isEnglish || InputModeSwitcher.isChinese -> processInput(event)
             else -> processEnglishKey(event)
@@ -937,8 +939,23 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         updateCandidate()
     }
 
+    /**
+     * 把组合串替换成展开面板选中的读音。
+     *
+     * 参考输入法点左列 `bao` 时会把输入从 `hao` 换成 `bao` 并重出候选；这里沿用同一语义。
+     * 读音过滤状态一起清掉，否则新组合上还挂着旧读音的过滤。
+     */
+    fun replaceReading(reading: String) {
+        if (reading.isEmpty() || UserDataManager.isInputPaused) return
+        DevicesUtils.tryVibrateSelection(this)
+        RimeEngine.replaceReading(reading)
+        candidatePanelState.clearFilters()
+        updateCandidate()
+        updateCandidateBar()
+    }
+
     fun showSymbols(symbols: Array<String>, clipboardSuggestion: Boolean = false) {
-        val list = symbols.map { Candidate("📋", it) }.toTypedArray()
+        val list = symbols.filter { it.isNotBlank() }.map { Candidate("📋", it) }.toTypedArray()
         DecodingInfo.cacheCandidates(list, true, clipboardSuggestion = clipboardSuggestion)
     }
 
@@ -1076,6 +1093,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             oldCandidatesEnd = -1
             service.finishComposingText()
         }
+        RimeSession.setPersonalizedLearningEnabled(nextEditor.allowsSuggestions)
         if (!UserDataManager.isInputPaused) InputModeSwitcher.requestInputWithSkb(editorInfo)
         // 设置页里改的悬浮／单手／键盘高度要在这里补算一次；几何变了就丢弃旧缓存键盘，
         // 否则新候选栏按窄宽度布局、旧键矩形仍是全宽，输入时整块错位。

@@ -22,6 +22,7 @@ data class Candidate(
      */
     var engineIndex: Int = -1
     var isOriginal: Boolean = false
+    var isSpellingCorrection: Boolean = false
     val displayText: String get() = if (isOriginal) "$text·原" else text
 }
 

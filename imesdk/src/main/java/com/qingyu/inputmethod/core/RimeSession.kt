@@ -49,6 +49,12 @@ object RimeSession {
     @Volatile
     private var schemaId: String = ""
 
+    @Volatile
+    private var personalizedLearningEnabled = true
+
+    @Volatile private var fuzzySpellingGroups = 0
+    @Volatile private var spellingCorrectionEnabled = true
+
     init {
         System.loadLibrary("qingyu_rime")
     }
@@ -81,6 +87,8 @@ object RimeSession {
         refreshStatus()
         schemaId = nativeCurrentSchema()
         generation += 1
+        nativeSetPersonalizedLearningEnabled(personalizedLearningEnabled)
+        nativeSetSpellingPolicy(fuzzySpellingGroups, spellingCorrectionEnabled)
         running = true
         return true
     }
@@ -145,6 +153,16 @@ object RimeSession {
     fun currentContext(): InputContext? = nativeContext().also { inputContext = it }
 
     /**
+     * 选项（Emoji、模糊音、拼写纠错、简繁）改变后重新取一次上下文。
+     *
+     * `RimeSetOption` 只改引擎状态，[context] 里仍是旧候选；设置页切回来不重新敲键时，
+     * 需要这一步让 UI 立刻按新选项重建候选。只在设置变更时调用，不进按键热路径。
+     */
+    fun refreshFromEngine() {
+        if (running) refreshContext()
+    }
+
+    /**
      * 当前引擎状态（实时读取，不读缓存）。
      *
      * 排查时特别关注 [Status.schemaName]：`librime` 的 `Schema::FetchUsefulConfigItems`
@@ -204,7 +222,11 @@ object RimeSession {
     /** 切换输入方案。 */
     fun selectSchema(schemaId: String): Boolean {
         val selected = nativeSelectSchema(schemaId)
-        if (selected) this.schemaId = nativeCurrentSchema().ifEmpty { schemaId }
+        if (selected) {
+            this.schemaId = nativeCurrentSchema().ifEmpty { schemaId }
+            nativeSetPersonalizedLearningEnabled(personalizedLearningEnabled)
+            nativeSetSpellingPolicy(fuzzySpellingGroups, spellingCorrectionEnabled)
+        }
         refreshContext()
         return selected
     }
@@ -214,6 +236,26 @@ object RimeSession {
 
     /** 设置独立引擎选项（如 emoji）；字形统一走 setScriptMode。 */
     fun setOption(option: String, value: Boolean) = nativeSetOption(option, value)
+
+    @Synchronized
+    fun setFuzzySpellingGroups(groups: Int) {
+        require(groups in 0..15)
+        fuzzySpellingGroups = groups
+        if (running) nativeSetSpellingPolicy(groups, spellingCorrectionEnabled)
+    }
+
+    @Synchronized
+    fun setSpellingCorrectionEnabled(enabled: Boolean) {
+        spellingCorrectionEnabled = enabled
+        if (running) nativeSetSpellingPolicy(fuzzySpellingGroups, enabled)
+    }
+
+    /** Editor policy survives asynchronous startup, schema changes and engine restart. */
+    @Synchronized
+    fun setPersonalizedLearningEnabled(enabled: Boolean) {
+        personalizedLearningEnabled = enabled
+        if (running) nativeSetPersonalizedLearningEnabled(enabled)
+    }
 
     @Volatile var scriptMode: Int = 0
         private set
@@ -304,6 +346,8 @@ object RimeSession {
     private external fun nativeStatus(): Status?
 
     private external fun nativeSetOption(option: String, value: Boolean)
+    private external fun nativeSetPersonalizedLearningEnabled(enabled: Boolean)
+    private external fun nativeSetSpellingPolicy(groups: Int, correction: Boolean)
     private external fun nativeSetScriptMode(mode: Int): Boolean
 
     private external fun nativeCurrentSchema(): String

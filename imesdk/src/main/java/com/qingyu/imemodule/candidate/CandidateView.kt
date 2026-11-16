@@ -27,6 +27,7 @@ import com.qingyu.imemodule.utils.StringUtils
 import com.qingyu.imemodule.view.widget.LifecycleRelativeLayout
 import com.qingyu.inputmethod.HandwritingLearning
 import com.qingyu.inputmethod.HandwritingSampleStore
+import com.qingyu.inputmethod.core.RimeSession
 import splitties.dimensions.dp
 import splitties.views.bottomPadding
 import splitties.views.leftPadding
@@ -56,6 +57,9 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
         mSkbCandidatesBarView = mSkbRoot.findViewById(R.id.candidates_bar)
         DecodingInfo.candidatesLiveData.observe(this) {
             mSkbCandidatesBarView.showCandidates()
+            // 物理键盘下候选只在这个窗口里展示。系统或用户收起窗口后，
+            // 新的候选发布必须显式请求重新显示，否则组合还在、候选却看不见。
+            if (!DecodingInfo.isCandidatesEmpty) service.requestCandidatesWindowIfHidden()
         }
         initView()
     }
@@ -101,7 +105,7 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
 
     fun processKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (com.qingyu.imemodule.manager.UserDataManager.isInputPaused) return true
-        if (editorContext?.allowsSuggestions == false) return false
+        if (editorContext?.isPassword == true) return false
         if(InputModeSwitcher.isEnglish) return false
         // 字母、数字、符号、空格
         if (keyCode >= KeyEvent.KEYCODE_A && keyCode <= KeyEvent.KEYCODE_Z) return true
@@ -119,7 +123,7 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
 
     fun processKeyUp(event: KeyEvent): Boolean {
         if (com.qingyu.imemodule.manager.UserDataManager.isInputPaused) return true
-        if (editorContext?.allowsSuggestions == false) return false
+        if (editorContext?.isPassword == true) return false
         InputModeSwitcher.resetCharCase()
         return if (processFunctionKeys(event)) true
         else if (InputModeSwitcher.isChinese) processInput(event)
@@ -265,6 +269,7 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
             service.finishComposingText()
         }
         editorContext = next
+        RimeSession.setPersonalizedLearningEnabled(next?.allowsSuggestions == true)
         if(editorInfo != null && !com.qingyu.imemodule.manager.UserDataManager.isInputPaused)InputModeSwitcher.requestInputWithSkb(editorInfo)
     }
 

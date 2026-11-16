@@ -37,7 +37,7 @@ std::vector<std::string> QueryAssociation(const std::string& input,
       CloseAssociationSession();
       return result;
     }
-    RimeSetOption(session, "disable_user_dict", True);
+    RimeSetProperty(session, "qingyu_no_learning", "1");
   }
   SetNativeScriptMode(session, mode);
   RimeClearComposition(session);

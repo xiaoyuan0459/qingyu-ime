@@ -79,7 +79,13 @@ jobs:
           python tools/check-native-licenses.py
           python tools/check-native-pack.py
       - name: Build and lint
+        # Run the same standalone protocol tests used before publishing source.
+        # They use synthetic temporary inputs and do not access device/user data.
+        # Keep this gate alongside the Android build for tag packaging as well.
         run: |
+          python -B tools/test_ime_evaluation.py
+          python -B tools/test_freq_chat_partitions.py
+          python -B tools/test_rime_source_provenance.py
           chmod +x gradlew
           ./gradlew :app:assembleOfflineDebug :imesdk:testOfflineDebugUnitTest :imesdk:lintOfflineDebug :app:lintOfflineDebug --max-workers=2 --warning-mode=all
           mkdir -p dist

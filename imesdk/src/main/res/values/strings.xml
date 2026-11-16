@@ -100,9 +100,9 @@
     <string name="clipboard_empty_hint">复制/剪切的文本会在这里\n最多记录 %1$d 条</string>
     <string name="lx17_with_left_prefix">乱序17键盘显示拼音选择</string>
     <string name="space_auto">英文单词自动追加空格</string>
-    <string name="emoji_setting">表情输入</string>
-    <string name="emoji_input">候选词中显示Emoji表情</string>
-    <string name="emoji_input_summary">关闭后候选不出现表情符号</string>
+    <string name="emoji_setting">表情与图标</string>
+    <string name="emoji_input">候选词中显示表情图标</string>
+    <string name="emoji_input_summary">关闭后 👄、🀄 等图标不再出现在候选里；汉字候选顺序不受影响</string>
     <string name="symbol_setting">符号输入</string>
     <string name="symbol_pair_input">成对符号自动匹配</string>
     <!-- 设置页分组标题：对齐参考基线「按键与字体 / 布局调节 / 外接键盘」的分组粒度 -->
@@ -296,7 +296,9 @@
     <string name="sdk_version">SDK版本</string>
     <string name="version">版本</string>
     <string name="build_git_hash">构建哈希</string>
-    <string name="build_time">构建时间</string>
+    <!-- 值是 HEAD 的提交时间（imesdk/build.gradle.kts 里用 git log -1 取 %ai），
+         不是打包时刻：写「构建时间」会让人以为它等于出包时间，实际差多少天都有可能。 -->
+    <string name="build_time">提交时间</string>
     <string name="clipboard">剪贴板</string>
     <string name="toolbox">工具箱</string>
     <string name="toolbox_edit_layout">编辑布局与显示</string>

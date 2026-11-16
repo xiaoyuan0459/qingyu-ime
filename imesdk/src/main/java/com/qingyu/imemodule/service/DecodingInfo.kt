@@ -63,7 +63,16 @@ object DecodingInfo {
 
     private var associationPrefix = ""
 
-    fun onScriptModeChanged() {
+    fun onScriptModeChanged() = onInputOptionsChanged()
+
+    /**
+     * 输入选项（简繁、Emoji、模糊音、拼写纠错）改变后，按新选项重建当前候选。
+     *
+     * 此前只有简繁切换走这条路径，Emoji/模糊音开关要等下一次按键才生效；选项都挂在
+     * 引擎会话上，重建时必须先让 [RimeSession] 丢掉旧上下文（[Kernel.nativeUpdateImeOption]
+     * 已在设置变更末尾刷新）。
+     */
+    fun onInputOptionsChanged() {
         cancelAssociation()
         if (isAssociate) {
             getAssociateWord(associationPrefix)
@@ -171,7 +180,8 @@ object DecodingInfo {
                 }
             } ?: return@launch
             if (request != strokePatternRequest || strokePattern != pattern) return@launch
-            val list = result.map { Candidate("", it).apply { isOriginal = RimeSession.scriptMode == 1 } }
+            val list = result.filter { it.isNotBlank() }
+                .map { Candidate("", it).apply { isOriginal = RimeSession.scriptMode == 1 } }
             isAssociate = false
             isHandwriting = false
             isClipboardSuggestion = false

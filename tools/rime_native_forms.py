@@ -7,6 +7,43 @@ import json
 from pathlib import Path
 ENTRY = re.compile(r"^(\S+) (\S+) \[([^]]+)\] /")
 CODE = re.compile(r"^[a-z]+(?: [a-z]+)*$")
+# 裸辅音字母不是拼音音节：CC-CEDICT 的 `T恤 [T xu]` 之类会让 `t` 成为"单字母音节"，
+# 棱镜随后把 `huij` 当成 `hui`+`j` 的精确码，缩拼完成（j→jia/ju）不再发生。
+# 元音字母（a/e/i/o/u/v）保留，避免改变 `duiie`、`haiahi` 这类输入的切分。
+BARE_CONSONANTS = set("bcdfghjklpqstvwxyz")  # 保留 a/e/i/o/u、m/n（呣/嗯）、r（儿化）
+
+
+def has_bare_consonant(sound):
+    return any(len(token) == 1 and token in BARE_CONSONANTS for token in sound.split())
+
+
+def supplement_entries(source):
+    """本仓库自有的补词表：CC-CEDICT 未收、但简繁同形的常用词。
+
+    与 CC-CEDICT 合并时取 max，所以补词永远不会削弱上游条目。表在
+    `imesdk/rime-src/native/supplement.tsv`，格式与词库一致（text / sound / weight），
+    权重取白霜 base 的同词权重，保持同一个量纲。
+    """
+    path = source / "supplement.tsv"
+    if not path.exists():
+        return {}
+    entries = {}
+    for number, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        fields = line.split("\t")
+        if len(fields) != 3:
+            raise ValueError(f"supplement.tsv 第 {number} 行列数不是 3")
+        text, sound, weight = fields
+        if not text or CODE.match(sound) is None:
+            raise ValueError(f"supplement.tsv 第 {number} 行读音不合法: {sound!r}")
+        if has_bare_consonant(sound):
+            raise ValueError(f"supplement.tsv 第 {number} 行含裸辅音读音: {sound!r}")
+        value = float(weight)
+        if value <= 0:
+            raise ValueError(f"supplement.tsv 第 {number} 行权重必须为正: {weight!r}")
+        entries[text, sound] = max(entries.get((text, sound), 0.0), value)
+    return entries
 
 
 def configure_schema(text):
@@ -58,15 +95,24 @@ def build_native_forms(workspace, repository):
     stats, weights = analyze(workspace, records)
     plain.unlink()
     entries = {}
+    dropped = 0
     for _, hant, sound in records:
+        if has_bare_consonant(sound):
+            dropped += 1
+            continue
         entries[hant, sound] = max(entries.get((hant, sound), 0),
             max(1, weights.get((hant, sound), 1)) * variants.get((hant, sound), 1.0))
+    added = supplement_entries(source)
+    for (text, sound), weight in added.items():
+        entries[text, sound] = max(entries.get((text, sound), 0), weight)
     with (workspace / "native_hant.dict.yaml").open("w", encoding="utf-8", newline="\n") as stream:
         stream.write('# CC-CEDICT input: CC-BY-SA-4.0; frequency-joined adaptation: GPL-3.0-only. See native-forms.json\n')
         stream.write('---\nname: native_hant\nversion: "2026.10.28"\nsort: by_weight\nuse_preset_vocabulary: false\n...\n')
         for (text, sound), weight in sorted(entries.items()):
             stream.write(f'{text}\t{sound}\t{weight:g}\n')
-    metadata.update({"records":len(entries),"adapterSpdx":"GPL-3.0-only","compatibility":"https://creativecommons.org/compatible-licenses/","coverage":stats,"selection":"native word forms only; all ambiguous alternatives retained","changes":"English definitions omitted; native traditional entries indexed with joined source word frequencies"})
+    metadata.update({"records":len(entries),"adapterSpdx":"GPL-3.0-only","compatibility":"https://creativecommons.org/compatible-licenses/","coverage":stats,"selection":"native word forms only; all ambiguous alternatives retained",
+          "droppedBareConsonantRows":dropped,"supplementRows":len(added),
+          "changes":"English definitions omitted; native traditional entries indexed with joined source word frequencies; local supplement fills same-form words missing upstream"})
     (workspace / "native-forms.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n', encoding="utf-8")
     (workspace / "AUTHORS.cc-cedict").write_text('\n'.join(header) + '\n\nQingyu modifications: native word-form dictionary, word-frequency join, prefix index.\nAdapter license: GPL-3.0-only (CC BY-SA 4.0 compatible license); original CC-BY-SA-4.0 terms and attribution retained.\n', encoding="utf-8")
 

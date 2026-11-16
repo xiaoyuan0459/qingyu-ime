@@ -1,0 +1,13 @@
+# 轻语补充：简繁同形、CC-CEDICT 未收录的常用词（本仓库自有整理，GPL-3.0-only）
+# 列：text<TAB>sound<TAB>weight
+# 权重沿用白霜 base.dict.yaml 的同词权重，保持与 native_hant 同一量纲；
+# 只补缺，不覆盖 CC-CEDICT 已有条目（合并取 max）。
+# 依据：F05-B 验收卡，m1 下这些词缺失导致首选/前四退步。
+好的	hao de	53388
+想想	xiang xiang	17224
+忘了	wang le	9320
+喝水	he shui	3012
+可用性	ke yong xing	830
+序列化	xu lie hua	400
+持久化	chi jiu hua	300
+套接字	tao jie zi	44

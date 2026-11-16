@@ -110,6 +110,9 @@ object Kernel {
                     .bufferedReader().use { it.readText() }
             }.getOrNull()
         }
+        // RimeSetOption 只改引擎状态，缓存的上下文还是旧候选；设置页切回来不重新敲键时
+        // 需要重新取一次，否则 Emoji/模糊音/纠错开关看起来「没生效」。
+        if (RimeSession.isRunning && RimeSession.isComposing) RimeSession.refreshFromEngine()
     }
 
     fun setCharCase(charCase: Int) {

@@ -1,5 +1,35 @@
 # 自研 native 层：接口契约与实现说明
 
+## 2026-11-03：生成前拼写策略与候选来源
+
+`RimeSession.setFuzzySpellingGroups(mask)` 接受 0–15 的四组掩码，
+`setSpellingCorrectionEnabled(enabled)` 接收纠错开关。private JNI
+`nativeSetSpellingPolicy(mask, enabled)` 在会话锁内同步四组模糊音及整词纠错选项，
+启动、切方案和重启后重应用；不写设置或用户词库。
+
+`Candidate.isSpellingCorrection: Boolean` 由 JNI 按字段名写入，表示候选包含本次
+原生有界整词恢复来源，不能用文字比较猜测。去重候选中任一来源满足即为 true，
+shadow/emoji 变形保持来源。SDK 在纠错开启时跳过该来源的普通模糊音归因，关闭时
+拒绝该来源；实际选择继续使用 `engineIndex`。与 `isOriginal` 的标注语义分别维护。
+
+新增字段和 native 同版交付；词库包及用户库格式不变。固定源码接口、数值契约、
+适用方案和限制见 [ADR 0012](../../docs/adr/0012-生成前拼写策略与有界整词纠错.md)。
+
+## 2026-11-02：编辑器禁止学习策略
+
+新增 `RimeSession.setPersonalizedLearningEnabled(enabled)` 与 private JNI
+`nativeSetPersonalizedLearningEnabled(enabled)`。SDK 缓存编辑器策略，启动、切方案和重启后
+重新应用；JNI 在互斥锁内设置 `qingyu_no_learning` 上下文属性。构建期固定版本补丁在
+librime Memory 的提交和删除词条入口读取它，禁止由该会话更新个人词条。
+
+普通文本框的 `IME_FLAG_NO_PERSONALIZED_LEARNING` 保留中文组合、候选及上屏；密码框
+继续旁路，联想/剪贴板提示和手写学习仍按编辑器隐私策略关闭。已有用户词库仍可参与转换。
+详见 [ADR 0011](../../docs/adr/0011-禁止学习标记与中文组合分离.md)。
+
+更正旧记录的依据：固定 librime 不识别 `disable_user_dict` 这个会话选项，不能据此宣称
+没有打开/读取用户库。独立联想和笔画通配查询现也使用新属性阻止 Memory 写入；是否读取
+历史词库由实际 schema 和字典加载决定。以下历史接口记录不替代该写入边界。
+
 ## 2026-10-28：五笔画通配只读查询
 
 新增后台 `RimeSession.strokeWildcard(pattern, maxCandidates)` 和 private JNI `nativeStrokeWildcard(pattern, maxCandidates)`。`pattern` 只接受小写 `hspnz*`、最多 32 位、最多两处通配；`stroke_wildcard.cc` 把 `*` 展开为 5 种笔画，在独立 `stroke` 会话中逐个查询并按名次轮转合并，最多返回 200 条。

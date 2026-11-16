@@ -1,0 +1,74 @@
+﻿id	keyboard	schema	keys	expected	max_rank	category	group	source
+jp-001	26key	pinyin	k:bj	北京	4	initials	jp-g1	已知差距样本：白霜 bj 首选「比」，北京排后（首基线实测 rank 8）
+jp-002	26key	pinyin	k:sh	是|时|上	0	initials	jp-g1	P0-A 种子（声母简拼对照）
+jp-003	26key	pinyin	k:bjsj	北京时间|比设计	0	initials	jp-g1	P0-A 种子
+jp-004	26key	pinyin	k:mt	每天|明天|美团	0	initials	jp-g1	P0-A 种子
+jp-005	26key	pinyin	k:zg	中国|整个	0	initials	jp-g1	P0-A 种子
+jp-006	26key	pinyin	k:zgrm	中国人民|个人	0	initials	jp-g2	P0-A 种子
+jp-007	26key	pinyin	k:ny	新年|努力|能源	0	initials	jp-g2	P0-A 种子
+jp-008	26key	pinyin	k:nh	你好|你会|年华	0	initials	jp-g2	P0-A 种子
+jp-009	26key	pinyin	k:nhm	你好吗|年华美	0	initials	jp-g2	P0-A 种子
+jp-010	26key	pinyin	k:nih	你会|你还|你好	1	initials	jp-g3	全拼+简拼竞争：nih 首选应为你会族
+jp-011	26key	pinyin	k:mtjx	每天学习|明天见	0	initials	jp-g3	P0-A 种子
+jp-012	26key	pinyin	k:jsj	计算机|司机	0	initials	jp-g3	P0-A 种子
+st-001	26key	pinyin	k:jintiandetianqizhenhao	今天天气真好|今天的天气真好	0	sentence	st-g1	整句：引擎倾向插入「的」，两解都收
+st-002	26key	pinyin	k:mingtiandeshaokao	明天的烧烤	0	sentence	st-g1	修正旧夹具错码：烧烤=shao kao，旧 shao huo 不能作为引擎错选证据
+st-003	26key	pinyin	k:xiawuhuiyidiankafei	下午会一点咖啡|下午回一点咖啡	0	sentence	st-g1	P0-A 种子
+st-004	26key	pinyin	k:wozailushangkandaozhitumao	我在路上看到只土猫	0	sentence	st-g2	已知差距样本：首基线出「制图猫」
+rd-001	26key	pinyin	k:mudidi	目的地	1	reading	rd-g1	修正夹具读音：目的地=mu di di；结构助词地=de另列独立正反例
+rd-002	26key	pinyin	k:dadeguancha	大的观察|大得观察	0	reading	rd-g1	的地得对照（记录层）
+rd-003	26key	pinyin	k:paokeai	跑可爱|跑客爱	0	reading	rd-g2	把/被对照：跑不该被迫（记录层）
+rd-004	26key	pinyin	k:bawozhuangle	把我撞了	0	reading	rd-g2	把句首正例
+rd-005	26key	pinyin	k:tamenba	他们吧|他们把	0	reading	rd-g2	句尾语气词
+rd-006	26key	pinyin	k:batai	吧台	1	reading	rd-g3	词义保护正例：吧台
+rd-007	26key	pinyin	k:yiqixing	一起性|一起行	0	reading	rd-g3	P0-A 种子
+co-001	26key	pinyin	k:xhong	中	1	correction	co-g1	TECHNICAL_DEBT 已验证：xhong 首选「中」
+co-002	26key	pinyin	k:shong	中	1	correction	co-g1	TECHNICAL_DEBT 已验证：shong 首选「中」
+co-003	26key	pinyin	k:song	送	0	correction	co-g1	正确码对照：song 不应被污染（记录用）
+co-004	26key	pinyin	k:wpman	我忙|我慢	0	correction	co-g2	TECHNICAL_DEBT 记录：多段组合纠错
+co-005	26key	pinyin	k:nihao	你好	0	correction	co-g2	正确码对照
+t9-001	t9	t9_pinyin	digits:64426	你好	0	t9basic	t9-g1	修正夹具漏键：nihao=64426=MGGAM；旧 MGAM 不代表你好
+t9-002	t9	t9_pinyin	k:MGT	牛|妞	0	t9basic	t9-g1	P0-A 种子（mgt=niu 前缀域）
+t9-003	t9	t9_pinyin	digits:94664486	中国	0	t9basic	t9-g1	修正夹具漏键：zhongguo=94664486=WGMMGGTM
+sf-001	26key	pinyin	k:nih bs:1 snap	你	0	stateflow	sf-g1	退格回到 ni 的候选态（preedit 应为 ni）
+sf-002	26key	pinyin	k:nihao sel:0 snap		0	stateflow	sf-g1	确认首选后 preedit 清空（expected 留空=仅记录 preedit）
+sf-003	26key	pinyin	k:nihao bs:2 snap	你好|你	0	stateflow	sf-g2	退格两键回到 nih 的候选态
+sf-004	26key	pinyin	k:jinti bs:1 snap	今天|今	0	stateflow	sf-g2	退格触发增量重算（jint→jin）
+cd-001	26key	pinyin	k:hh	哈哈	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 hh，全拼 ha ha）
+cd-002	26key	pinyin	k:sm	什么	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 sm，全拼 shen me）
+cd-003	26key	pinyin	k:hhh	哈哈哈	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 hhh，全拼 ha ha ha）
+cd-004	26key	pinyin	k:ky	可以	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 ky，全拼 ke yi）
+cd-005	26key	pinyin	k:my	没有	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 my，全拼 mei you）
+cd-006	26key	pinyin	k:bs	不是	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 bs，全拼 bu shi）
+cd-007	26key	pinyin	k:js	就是	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 js，全拼 jiu shi）
+cd-008	26key	pinyin	k:wm	我们	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 wm，全拼 wo men）
+cd-009	26key	pinyin	k:zd	知道	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 zd，全拼 zhi dao）
+cd-010	26key	pinyin	k:zj	自己	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 zj，全拼 zi ji）
+cd-011	26key	pinyin	k:yg	一个	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 yg，全拼 yi ge）
+cd-012	26key	pinyin	k:xh	喜欢	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 xh，全拼 xi huan）
+cd-013	26key	pinyin	k:zm	怎么	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 zm，全拼 zen me）
+cd-014	26key	pinyin	k:hs	还是	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 hs，全拼 hai shi）
+cd-015	26key	pinyin	k:xz	现在	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 xz，全拼 xian zai）
+cd-016	26key	pinyin	k:jd	觉得	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 jd，全拼 jue de）
+cd-017	26key	pinyin	k:nm	你们	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 nm，全拼 ni men）
+cd-018	26key	pinyin	k:xx	谢谢	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 xx，全拼 xie xie）
+cd-019	26key	pinyin	k:jt	今天	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 jt，全拼 jin tian）
+cd-020	26key	pinyin	k:by	不要	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 by，全拼 bu yao）
+cd-021	26key	pinyin	k:gj	感觉	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 gj，全拼 gan jue）
+cd-022	26key	pinyin	k:yq	一起	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 yq，全拼 yi qi）
+cd-023	26key	pinyin	k:hl	回来	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 hl，全拼 hui lai）
+cd-024	26key	pinyin	k:zy	这样	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 zy，全拼 zhe yang）
+cd-025	26key	pinyin	k:jy	加油	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 jy，全拼 jia you）
+cd-026	26key	pinyin	k:bh	不会	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 bh，全拼 bu hui）
+cd-027	26key	pinyin	k:yj	已经	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 yj，全拼 yi jing）
+cd-028	26key	pinyin	k:hk	好看	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 hk，全拼 hao kan）
+cd-029	26key	pinyin	k:kd	看到	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 kd，全拼 kan dao）
+cd-030	26key	pinyin	k:hhhh	哈哈哈哈	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 hhhh，全拼 ha ha ha ha）
+cd-031	26key	pinyin	k:hy	还有	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 hy，全拼 hai you）
+cd-032	26key	pinyin	k:ng	那个	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 ng，全拼 na ge）
+cd-033	26key	pinyin	k:bn	不能	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 bn，全拼 bu neng）
+cd-034	26key	pinyin	k:yx	一下	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 yx，全拼 yi xia）
+cd-035	26key	pinyin	k:yz	一直	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 yz，全拼 yi zhi）
+cd-036	26key	pinyin	k:yy	一样	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 yy，全拼 yi yang）
+cd-037	26key	pinyin	k:wsm	为什么	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 wsm，全拼 wei shen me）
+cd-038	26key	pinyin	k:yw	因为	0	initials	chat-derived	聊天语料高频词派生（LCCC base 全量，词频 训练态样本；简拼串 yw，全拼 yin wei）

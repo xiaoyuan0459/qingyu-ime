@@ -16,9 +16,12 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.qingyu.imemodule.R
 import com.qingyu.imemodule.adapter.CandidatesAdapter
+import com.qingyu.imemodule.application.CustomConstant
 import com.qingyu.imemodule.adapter.PrefixAdapter
+import com.qingyu.imemodule.adapter.ReadingAdapter
 import com.qingyu.imemodule.data.theme.ThemeManager
 import com.qingyu.imemodule.entity.keyboard.SoftKey
+import com.qingyu.imemodule.keyboard.CandidatePanelState
 import com.qingyu.imemodule.keyboard.InputView
 import com.qingyu.imemodule.keyboard.KeyboardManager
 import com.qingyu.imemodule.manager.InputModeSwitcher
@@ -80,15 +83,16 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
     private var lookupTicket = 0L
     private var lookupError = false
     private var paging = false
-    private var pageBudget = 3
+    private var pageBudget = FILL_PAGE_BUDGET
     private var leftLabels: List<String> = emptyList()
+    private var leftReadings: List<CandidatePanelState.Reading> = emptyList()
 
-    /** 左列当前是不是「读音过滤」模式；模式变了也要重建适配器，否则点击回调还停在旧语义上。 */
-    private var leftReadingMode = false
     private var rendered = emptyList<com.qingyu.imemodule.keyboard.CandidatePanelState.Entry>()
     private var visibleRows = 4
     private var cellHeightPx = 0
     private val visibleCandidateCapacity: Int get() = manager.spanCount * visibleRows
+    // 首屏之外再预取一屏：候选被模糊音/生僻字过滤后一页常常只剩几项，只取一页会显得「词很少」。
+    private val fillTarget: Int get() = (visibleCandidateCapacity * 2).coerceAtLeast(MIN_FILL_TARGET)
     val defaultCandidateIndex: Int get() = rendered.firstOrNull()?.displayIndex ?: -1
 
     init {
@@ -114,7 +118,10 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
                     if (position == RecyclerView.NO_POSITION) continue
                     val right = child.right.toFloat()
                     canvas.drawLine(child.left.toFloat(), child.bottom.toFloat(), right, child.bottom.toFloat(), paint)
-                    if ((position + 1) % manager.spanCount != 0)
+                    // 只在实际存在的相邻格之间画竖线：最后一行不足 spanCount 时，
+                    // 末尾空位不能再被一条右边框「框」成空候选。
+                    val next = position + 1
+                    if (next < state.itemCount && next % manager.spanCount != 0)
                         canvas.drawLine(right, child.top.toFloat(), right, child.bottom.toFloat(), paint)
                 }
             }
@@ -122,7 +129,7 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
         grid.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(view: RecyclerView, newState: Int) {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE &&
-                    manager.findLastVisibleItemPosition() >= adapter.itemCount - manager.spanCount) {
+                    manager.findLastVisibleItemPosition() >= adapter.itemCount - manager.spanCount * 2) {
                     pageBudget = 1
                     requestMore()
                 }
@@ -143,7 +150,7 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
         addView(root, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         status.setOnClickListener {
             if (lookupError) { lookupError = false; lookupCodes() }
-            else { pageBudget = 3; requestMore() }
+            else { pageBudget = FILL_PAGE_BUDGET; requestMore() }
         }
         ready = true
     }
@@ -151,6 +158,8 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
     private fun lineColor() = ColorUtils.setAlphaComponent(theme.keyTextColor, 35)
     override fun onAttachedToWindow() {
         scope = MainScope()
+        // 每次打开面板都重新允许预取：上一次可能已经把预算花在「更多」上。
+        pageBudget = FILL_PAGE_BUDGET
         super.onAttachedToWindow()
         showCandidatesView()
     }
@@ -214,32 +223,56 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
             InputModeSwitcher.skbLayout == InputModeSwitcher.MASK_SKB_LAYOUT_LX17
         val prefixOptions = if (readingLayout) DecodingInfo.prefixs else emptyArray()
         val usingPrefixOptions = prefixOptions.isNotEmpty()
-        val readings = when {
+        val readingOptions = when {
             state.strokeMode || usingPrefixOptions -> emptyList()
-            readingLayout -> state.t9Spellings(DecodingInfo.candidates)
-            DecodingInfo.prefixs.isEmpty() -> state.spellings(DecodingInfo.candidates, composingText)
+            readingLayout -> state.t9Readings(DecodingInfo.candidates)
+            DecodingInfo.prefixs.isEmpty() -> state.readings(
+                DecodingInfo.candidates,
+                composingText,
+                // 双拼/手写/英文的组合串不是拼音音节，生成读音会把编码当读音替换掉。
+                allowGenerated = RimeSession.currentSchemaId() == CustomConstant.SCHEMA_ZH_QWERTY,
+            )
             else -> emptyList()
         }
-        val showReadings = readings.isNotEmpty() &&
-            (readingLayout || readings.size > 1)
+        // 纠错读数即使只有一条也要显示（shong → zhong）；readings() 已在「与输入相同且
+        // 只有一条」时返回空，这里不再按条数二次收窄。
+        val readingMode = !state.strokeMode && readingOptions.isNotEmpty() && !usingPrefixOptions
         val labels = when {
             // 通配组合没有可点的音节/笔画前缀，左列会误触发 selectPrefix；留空只显示候选网格。
             DecodingInfo.isStrokePattern -> emptyList()
             state.strokeMode -> strokeSymbols
             usingPrefixOptions -> prefixOptions.asList()
-            readingLayout && readings.isNotEmpty() -> readings
+            readingMode -> emptyList()
             !syllableMode -> DecodingInfo.prefixs.asList()
-            showReadings -> readings
             // 全拼：左列展示组合串按分词符拆开的音节表，与参考展开面板一致
             else -> composingText.split('\'').filter { it.isNotBlank() }
         }
-        val readingMode = !state.strokeMode && showReadings && !usingPrefixOptions
         composingText.takeIf { it.isNotEmpty() }?.let { leftColumn.contentDescription = it }
-        leftColumn.visibility = if (labels.isEmpty()) GONE else VISIBLE
-        left.visibility = if (labels.isEmpty()) GONE else VISIBLE
-        if (labels != leftLabels || readingMode != leftReadingMode) {
+        val leftVisible = readingMode || labels.isNotEmpty()
+        leftColumn.visibility = if (leftVisible) VISIBLE else GONE
+        left.visibility = if (leftVisible) VISIBLE else GONE
+        if (readingMode) {
+            if (readingOptions != leftReadings || left.adapter !is ReadingAdapter) {
+                leftReadings = readingOptions
+                leftLabels = emptyList()
+                left.adapter = ReadingAdapter(context, readingOptions, dp(56)) { index ->
+                    val reading = readingOptions.getOrNull(index)
+                    if (reading != null) {
+                        when (val filter = reading.filter) {
+                            // 生成的邻键/简拼读音没有对应注释：替换输入串让引擎重出候选。
+                            is CandidatePanelState.Filter.ReplaceInput ->
+                                inputView.replaceReading(filter.value)
+                            else -> {
+                                state.selectSpelling(filter)
+                                changedFilter()
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (labels != leftLabels || left.adapter !is PrefixAdapter) {
+            leftReadings = emptyList()
             leftLabels = labels
-            leftReadingMode = readingMode
             left.adapter = PrefixAdapter(
                 context, labels.toTypedArray(), if (state.strokeMode) strokeDescriptions else null,
                 dp(56), textSizeSp = 20f
@@ -249,18 +282,22 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
                         state.selectFirstStroke(strokeCodes[index])
                         changedFilter()
                     }
-                    readingMode -> {
-                        state.selectSpelling(labels.getOrNull(index))
-                        changedFilter()
-                    }
                     !syllableMode -> inputView.selectPrefix(index)
                 }
             }
         }
         updateColumns()
-        (left.adapter as? PrefixAdapter)?.setSelectedIndex(if (state.strokeMode)
-            state.firstStroke?.let { strokeCodes.indexOf(it) } ?: -1
-        else if (readingMode) labels.indexOf(state.spelling) else -1)
+        if (readingMode) {
+            val selectedByFilter = readingOptions.indexOfFirst { it.filter == state.spelling }
+            val selected = if (selectedByFilter >= 0) selectedByFilter else readingOptions.indexOfFirst {
+                (it.filter as? CandidatePanelState.Filter.ReplaceInput)?.value == composingText
+            }
+            (left.adapter as? ReadingAdapter)?.setSelectedIndex(selected)
+        } else {
+            (left.adapter as? PrefixAdapter)?.setSelectedIndex(if (state.strokeMode)
+                state.firstStroke?.let { strokeCodes.indexOf(it) } ?: -1
+            else -1)
+        }
         val footer = !waiting && !lookupError && rendered.isNotEmpty() &&
             (state.singleCharacter || state.firstStroke != null) && pageBudget <= 0 &&
             rendered.size < visibleCandidateCapacity && RimeSession.hasRight()
@@ -277,14 +314,16 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
             else -> R.string.candidate_none
         })
         lookupCodes()
-        if (!lookupError && !waiting && (state.singleCharacter || state.firstStroke != null) &&
-            rendered.size < visibleCandidateCapacity) requestMore()
+        // 一页候选常被模糊音/生僻字过滤掉大半（ni 的一页 30 条只剩 9 条）。面板打开时
+        // 继续取页补到两屏，避免首屏看起来「没有词」；打字热路径不触发，翻页预算封顶。
+        if (!lookupError && !waiting && isAttachedToWindow && visibility == VISIBLE &&
+            rendered.size < fillTarget && RimeSession.hasRight() && pageBudget > 0) requestMore()
         inputView.updateCandidateBar()
     }
 
     private fun changedFilter() {
         lookupError = false
-        pageBudget = 3
+        pageBudget = FILL_PAGE_BUDGET
         showCandidatesView()
         grid.scrollToPosition(0)
         DevicesUtils.tryVibrateSelection(this)
@@ -352,6 +391,9 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
         if (DecodingInfo.isCandidatesEmpty) returnToKeyboard()
     }
     companion object {
+        /** 打开面板后最多补取几页：4 页 × 30 条足以覆盖模糊音过滤后的首屏 + 一屏缓冲。 */
+        private const val FILL_PAGE_BUDGET = 4
+        private const val MIN_FILL_TARGET = 12
         private const val strokeCodes = "hspnz"
         private val strokeSymbols = listOf("一", "丨", "丿", "丶", "ㄥ")
         private val strokeDescriptions = arrayOf("横 一", "竖 丨", "撇 丿", "点 丶", "折 ㄥ")

@@ -4,3 +4,4 @@
 void RegisterNativeScriptTranslator();
 bool SetNativeScriptMode(RimeSessionId session, int mode);
 bool IsOriginalCandidate(RimeSessionId session, size_t index);
+bool IsSpellingCorrectionCandidate(RimeSessionId session, size_t index);

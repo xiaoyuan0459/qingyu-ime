@@ -39,11 +39,14 @@ def patch_spelling(algo: Path) -> None:
     path = algo / "spelling.h"
     text = read(path)
     if MARKER in text:
+        expected = "  kCompletion,\n  kAmbiguousSpelling,\n  kCorrectionSpelling,\n  kInvalidSpelling"
+        if expected not in text:
+            fail("spelling.h 已有纠错类型但枚举顺序不兼容旧 prism；需人工检查 vendor")
         return
-    anchor = "  kAbbreviation,\n  kCompletion,"
+    anchor = "  kAmbiguousSpelling,\n  kInvalidSpelling"
     if anchor not in text:
         fail("spelling.h 的 SpellingType 枚举锚点不匹配")
-    write(path, text.replace(anchor, "  kAbbreviation,\n  kCorrectionSpelling,\n  kCompletion,", 1))
+    write(path, text.replace(anchor, "  kAmbiguousSpelling,\n  kCorrectionSpelling,\n  kInvalidSpelling", 1))
 
 
 def patch_calculus_header(algo: Path) -> None:

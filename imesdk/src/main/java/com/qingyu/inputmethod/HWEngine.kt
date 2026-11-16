@@ -114,6 +114,7 @@ object HWEngine {
                 val items = ArrayList<Candidate>(ordered.size)
                 for (r in ordered) {
                     val text = r.text
+                    if (text.isBlank()) continue
                     val pinyin = HanziPinyin.ofText(text).ifEmpty { text }
                     items.add(Candidate(pinyin, text))
                 }

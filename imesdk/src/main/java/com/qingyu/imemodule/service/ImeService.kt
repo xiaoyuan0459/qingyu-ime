@@ -56,6 +56,7 @@ class ImeService : InputMethodService() {
     private var configurationJob: kotlinx.coroutines.Job? = null
     private var isHardwareKeyboard = false
     private var isSoftKeyboard = false
+    private var imeWindowShown = false
     private var clipboardMenuBack = false
     private var lastInsetsSignature: String? = null
     private lateinit var mInputView: InputView
@@ -131,7 +132,12 @@ class ImeService : InputMethodService() {
         // including an explicit show request while a physical keyboard is connected.
         isSoftKeyboard = true
         isHardwareKeyboard = false
-        setCandidatesViewShown(false)
+        // 候选区在框架层保持“已显示”，软键盘模式只把候选视图本身设为 GONE。
+        // 框架只在全屏状态变化或视图重建时同步候选区父容器可见性；若这里改回
+        // setCandidatesViewShown(false)，之后切到硬件键盘会出现窗口已显示但候选区
+        // 仍是 INVISIBLE 的状态（真实 UI 里表现为组合有候选、候选窗口却看不见）。
+        setCandidatesViewShown(true)
+        if (::mCandidateView.isInitialized) mCandidateView.visibility = View.GONE
         KeyboardOpLog.record(
             "input_start",
             "restarting" to restarting,
@@ -373,12 +379,14 @@ class ImeService : InputMethodService() {
     }
 
     override fun onWindowShown() {
+        imeWindowShown = true
         KeyboardOpLog.record("window_shown", "soft" to isSoftKeyboard, "hardware" to isHardwareKeyboard)
         if (isSoftKeyboard && ::mInputView.isInitialized) mInputView.onWindowShown()
         super.onWindowShown()
     }
 
     override fun onWindowHidden() {
+        imeWindowShown = false
         KeyboardOpLog.record("window_hidden", "soft" to isSoftKeyboard, "hardware" to isHardwareKeyboard)
         clipboardMenuBack = false
         voice.cancel(preservePermission = true)
@@ -491,6 +499,25 @@ class ImeService : InputMethodService() {
         currentInputConnection.setSelection(start, end)
     }
 
+    /**
+     * 物理键盘候选区恢复。
+     *
+     * 硬件键盘下软键盘被系统抑制，候选只能靠候选窗口展示。框架只在视图重建或全屏
+     * 状态变化时同步候选区父容器的可见性；软键盘阶段收起候选区后，再切回硬件键盘可能
+     * 出现“窗口已显示、候选区仍 INVISIBLE”的状态——组合里已有候选，用户却看不见。
+     * 因此 [onStartInputView] 与 [handleHardwareKeyboard] 都让候选区保持“已显示”，
+     * 软硬件模式只切换候选视图自身；这里在窗口确实被收起、又发布新候选时，再走一次
+     * 框架的候选可见性入口。空模型不动作，也不在 [onWindowHidden] 里自动重开。
+     *
+     * 应用主动 hideSoftInputFromWindow 收起的窗口由系统保持隐藏，输入法无法抢回；
+     * 那种情况下本次请求会被系统再次收起，属于平台语义，不作为缺陷处理。
+     */
+    fun requestCandidatesWindowIfHidden() {
+        if (!isHardwareKeyboard || imeWindowShown) return
+        KeyboardOpLog.record("candidates_window_show", "reason" to "hidden")
+        setCandidatesViewShown(true)
+    }
+
     fun handleHardwareKeyboard(newConfig: Configuration? = null) {
         val config = newConfig ?: resources.configuration
         val hardwareKeyboard = config.keyboard != Configuration.KEYBOARD_NOKEYS &&
@@ -498,7 +525,11 @@ class ImeService : InputMethodService() {
             !onEvaluateInputViewShown()
         isSoftKeyboard = !hardwareKeyboard
         isHardwareKeyboard = hardwareKeyboard
-        setCandidatesViewShown(isHardwareKeyboard)
+        // 候选区始终按“已显示”上报，实际可见性由候选视图自己控制。
+        setCandidatesViewShown(true)
+        if (::mCandidateView.isInitialized) {
+            mCandidateView.visibility = if (isHardwareKeyboard) View.VISIBLE else View.GONE
+        }
         currentInputConnection?.requestCursorUpdates(if(isHardwareKeyboard)InputConnection.CURSOR_UPDATE_MONITOR else 0)
     }
 
