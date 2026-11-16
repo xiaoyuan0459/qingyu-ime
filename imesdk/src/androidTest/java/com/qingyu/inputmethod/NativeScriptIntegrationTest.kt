@@ -49,12 +49,12 @@ class NativeScriptIntegrationTest {
 
     @Test fun nativeFormsCommitExactlyAsDisplayedInAllModes() {
         setMode(ScriptMode.Traditional)
-        RimeSession.setOption("disable_user_dict", true)
+        RimeSession.setPersonalizedLearningEnabled(false)
         try {
             type("taiwan")
             assertEquals("Canonical native form must precede its source-annotated variant", "臺灣", RimeEngine.showCandidates.first().text)
             assertFalse(find("台灣").isOriginal)
-        } finally { RimeSession.setOption("disable_user_dict", false) }
+        } finally { RimeSession.setPersonalizedLearningEnabled(true) }
         for (mode in ScriptMode.entries) {
             setMode(mode)
             for ((code, hans, hant) in listOf(
@@ -136,8 +136,17 @@ class NativeScriptIntegrationTest {
             RimeSession.setOption("legacy_conversion", true)
             for ((code, expected) in listOf("he" to "𠀀", "ni" to "禰\uDB40\uDD00", "shen" to "神", "brand" to "iPhone")) {
                 type(code)
-                val candidate = find(expected)
-                assertEquals(expected, RimeEngine.selectCandidate(candidate.engineIndex))
+                assertEquals("Synthetic imported pack must preserve native Unicode", expected,
+                    RimeSession.context?.candidates?.firstOrNull()?.text)
+                if (CandidateDisplayPolicy.isDisplayable(expected)) {
+                    val candidate = find(expected)
+                    assertEquals(expected, RimeEngine.selectCandidate(candidate.engineIndex))
+                } else {
+                    // Missing system fonts may hide this public fixture; the JNI contract still preserves it.
+                    assertFalse(RimeEngine.showCandidates.any { it.text == expected })
+                    assertTrue(RimeSession.selectCandidate(0))
+                    assertEquals(expected, RimeSession.commit()?.commitText)
+                }
             }
         } finally {
             if (installed) assertTrue("Pack recovery failed", RimePackManager.rollback(context))
@@ -163,7 +172,7 @@ class NativeScriptIntegrationTest {
         repeat(30) {
             val page = RimeEngine.getNextPageCandidates()
             page.firstOrNull { it.text == text }?.let { return it }
-            if (page.isEmpty()) fail("Expected candidate not found for public fixture")
+            if (page.isEmpty()) fail("Expected public fixture candidate absent: $text")
         }
         throw AssertionError("Expected candidate beyond bounded search")
     }

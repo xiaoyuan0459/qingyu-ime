@@ -18,6 +18,7 @@ import com.qingyu.imemodule.prefs.AppPrefs
 import com.qingyu.imemodule.manager.UserDataManager
 import com.qingyu.imemodule.service.ClipboardHelper
 import com.qingyu.imemodule.utils.thread.ThreadPoolUtils
+import com.qingyu.inputmethod.GlyphSupport
 import com.qingyu.inputmethod.core.Kernel
 
 class Launcher {
@@ -39,6 +40,8 @@ class Launcher {
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
         migrateSkbStyleMode(sharedPreferences)
         AppPrefs.init(sharedPreferences)
+        // 候选里的单字要先问系统字体有没有字形，否则扩展区生僻字会在面板里留下空白格。
+        GlyphSupport.installAndroidChecker()
         ThemeManager.init(context.resources.configuration)
         ImeDataRepository.start()
         ClipboardHelper.init()

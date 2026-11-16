@@ -19,7 +19,9 @@ import com.qingyu.imemodule.R
 import kotlin.math.roundToInt
 
 /**
- * 参考基线里的开关：40x22dp 胶囊轨道，开=13dp 白圆钮靠右，关=8.5x3.5dp 白色短横靠左。
+ * 参考魅族系统开关：40x22dp 胶囊轨道；开=14dp 白圆钮靠右、浅蓝轨道；
+ * 关=9x4dp 白色短横靠左、浅灰轨道。钮与轨道之间保留 4dp（开）/ 7dp（关）内缩，
+ * 和系统开关的圆钮不贴边一致。
  *
  * 没有用 SwitchCompat：它的 thumb/track 会被主题的 switchStyle 套上 ColorStateList tint，
  * 而 tint 默认 SRC_IN（替换颜色而非叠乘），自绘的轨道色与钮色会被整个抹掉，style 里又清不掉。
@@ -41,9 +43,11 @@ class FlymeSwitch @JvmOverloads constructor(
     private val thumbSize = resources.getDimension(R.dimen.pref_switch_thumb_size)
     private val thumbWidthOff = resources.getDimension(R.dimen.pref_switch_thumb_off_width)
     private val thumbHeightOff = resources.getDimension(R.dimen.pref_switch_thumb_off_height)
+    private val thumbInsetOn = resources.getDimension(R.dimen.pref_switch_thumb_inset)
+    private val thumbInsetOff = resources.getDimension(R.dimen.pref_switch_thumb_inset_off)
 
     @ColorInt
-    private val trackColorOn = ContextCompat.getColor(context, R.color.pref_accent)
+    private val trackColorOn = ContextCompat.getColor(context, R.color.pref_switch_track_on)
 
     @ColorInt
     private val trackColorOff = ContextCompat.getColor(context, R.color.pref_switch_track_off)
@@ -92,8 +96,10 @@ class FlymeSwitch @JvmOverloads constructor(
         // 于是关闭态是基线里的短横，打开态正好是正圆。
         val thumbWidth = lerpTo(thumbWidthOff, thumbSize)
         val thumbHeight = lerpTo(thumbHeightOff, thumbSize)
+        val inset = lerpTo(thumbInsetOff, thumbInsetOn)
         val visualPosition = if (layoutDirection == LAYOUT_DIRECTION_RTL) 1f - position else position
-        val thumbLeft = left + (right - left - thumbWidth) * visualPosition
+        val travel = (right - left) - thumbWidth - inset * 2f
+        val thumbLeft = left + inset + travel * visualPosition
         canvas.drawRoundRect(
             thumbLeft, centerY - thumbHeight / 2f,
             thumbLeft + thumbWidth, centerY + thumbHeight / 2f,

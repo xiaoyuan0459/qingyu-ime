@@ -8,6 +8,7 @@ import com.qingyu.imemodule.manager.InputModeSwitcher
 import com.qingyu.imemodule.prefs.AppPrefs
 import com.qingyu.imemodule.prefs.behavior.SkbMenuMode
 import com.qingyu.imemodule.prefs.behavior.SymbolMode
+import com.qingyu.imemodule.service.DecodingInfo
 import com.qingyu.imemodule.singleton.EnvironmentSingleton
 import com.qingyu.imemodule.utils.AppUtil
 import com.qingyu.imemodule.utils.FeedbackInfo
@@ -83,6 +84,7 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
             val emojiInput = AppPrefs.getInstance().input.emojiInput.getValue()
             AppPrefs.getInstance().input.emojiInput.setValue(!emojiInput)
             Kernel.nativeUpdateImeOption()
+            DecodingInfo.onInputOptionsChanged()
             KeyboardManager.instance.switchKeyboard()
         }
         SkbMenuMode.Handwriting -> AppUtil.launchSettingsToHandwriting(Launcher.instance.context)

@@ -1,8 +1,10 @@
 package com.qingyu.imemodule.adapter
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.TypedValue
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -22,6 +24,8 @@ class CandidatesBarAdapter(context: Context?) :
     private val inflater: LayoutInflater
     private var mOnItemClickListener: OnRecyclerItemClickListener? = null
     private var mActiveCandNo:Int = 0
+    private data class Choice(val displayText: String, val comment: String)
+    private var displayedChoices: List<Choice> = emptyList()
     fun setOnItemClickLitener(mOnItemClickLitener: OnRecyclerItemClickListener?) {
         mOnItemClickListener = mOnItemClickLitener
     }
@@ -37,8 +41,9 @@ class CandidatesBarAdapter(context: Context?) :
     }
 
     override fun onBindViewHolder(holder: SymbolHolder, position: Int) {
-        if(DecodingInfo.isCandidatesEmpty) return
-        val text = DecodingInfo.candidates[position].displayText
+        val choice = displayedChoices.getOrNull(position) ?: return
+        val text = choice.displayText
+        holder.bindChoice(choice.displayText, choice.comment)
         holder.textView.text = text
         // TalkBack 逐条读候选时会连序号一起念，否则一排候选听不出「念到第几个、还有几个」。
         // 组装这个串要查资源并格式化，文本与序号都没变时不重复做。
@@ -62,16 +67,15 @@ class CandidatesBarAdapter(context: Context?) :
         }
         val primary = if (mActiveCandNo > 0) mActiveCandNo - 1 == position else !DecodingInfo.isAssociate && position == 0
         holder.textView.setTextColor(if (primary) activeTheme.accentKeyBackgroundColor else activeTheme.keyTextColor)
-        if (mOnItemClickListener != null) {
-            holder.itemView.setOnClickListener { view: View? ->
-                val index = holder.bindingAdapterPosition
-                if (index != RecyclerView.NO_POSITION) mOnItemClickListener?.onItemClick(this@CandidatesBarAdapter, view, index)
-            }
-        }
+    }
+
+    override fun onViewRecycled(holder: SymbolHolder) {
+        holder.clearChoice()
+        super.onViewRecycled(holder)
     }
 
     override fun getItemCount(): Int {
-        return DecodingInfo.candidateSize
+        return displayedChoices.size
     }
 
     fun activeCandidates(activeCandNo:Int) {
@@ -87,7 +91,10 @@ class CandidatesBarAdapter(context: Context?) :
      * 全量通知（此时结构确实变了）。候选栏每敲一个键都会刷新，这条路径在热路径上。
      */
     fun notifyChanged() {
-        val size = DecodingInfo.candidateSize
+        // RecyclerView binding and hit targets describe one rendered frame,
+        // even when the engine has already published the next candidate list.
+        displayedChoices = DecodingInfo.candidates.map { Choice(it.displayText, it.comment) }
+        val size = displayedChoices.size
         if (size == lastItemCount) {
             if (size > 0) notifyItemRangeChanged(0, size)
             return
@@ -96,15 +103,51 @@ class CandidatesBarAdapter(context: Context?) :
         notifyDataSetChanged()
     }
 
+    @SuppressLint("ClickableViewAccessibility") // Touch only remembers identity; normal View clicks still handle accessibility.
     inner class SymbolHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private var boundChoice: Choice? = null
+        private var pressedChoice: Choice? = null
         var textView: EmojiTextView = view.findViewById(R.id.gv_candidates_bar_item)
         val pinyinView: TextView = view.findViewById(R.id.gv_candidates_bar_pinyin)
         // 已应用的候选字号与无障碍文案，避免重复触发布局
         var appliedTextSize: Float = -1f
         var boundText: String? = null
         var boundPosition: Int = RecyclerView.NO_POSITION
+        internal fun bindChoice(displayText: String, comment: String) {
+            boundChoice = Choice(displayText, comment)
+        }
+        internal fun clearChoice() {
+            boundChoice = null
+            pressedChoice = null
+            boundText = null
+            boundPosition = RecyclerView.NO_POSITION
+            textView.text = ""
+            itemView.contentDescription = null
+        }
         init {
             textView.setTextColor(activeTheme.keyTextColor)
+            itemView.setOnTouchListener { _, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> pressedChoice = boundChoice
+                    MotionEvent.ACTION_CANCEL -> pressedChoice = null
+                }
+                false
+            }
+            itemView.setOnClickListener { clicked ->
+                val positionNow = bindingAdapterPosition
+                val selected = if (itemView.isPressed) pressedChoice ?: boundChoice else boundChoice
+                pressedChoice = null
+                if (positionNow != RecyclerView.NO_POSITION && selected != null) {
+                    val current = DecodingInfo.candidates
+                    fun matches(index: Int): Boolean = current.getOrNull(index)?.let {
+                        it.displayText == selected.displayText && it.comment == selected.comment
+                    } == true
+                    val index = if (matches(positionNow)) positionNow else current.indexOfFirst {
+                        it.displayText == selected.displayText && it.comment == selected.comment
+                    }
+                    if (index >= 0) mOnItemClickListener?.onItemClick(this@CandidatesBarAdapter, clicked, index)
+                }
+            }
         }
     }
 }

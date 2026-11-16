@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Bundle
 import android.text.InputType
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.LinearLayout
 
@@ -11,6 +12,7 @@ import android.widget.LinearLayout
 class NativeTypingHostActivity : Activity() {
     lateinit var first: EditText
     lateinit var password: EditText
+    lateinit var noLearning: EditText
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -21,11 +23,17 @@ class NativeTypingHostActivity : Activity() {
             hint = "Synthetic password field"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
+        noLearning = EditText(this).apply {
+            hint = "Synthetic private editor"
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        }
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 100, 24, 24)
             addView(first, LinearLayout.LayoutParams(-1, 160))
             addView(password, LinearLayout.LayoutParams(-1, 160))
+            addView(noLearning, LinearLayout.LayoutParams(-1, 160))
         })
     }
 }

@@ -1,14 +1,6 @@
-# `cn_en` 段的中英混输词表是 stabledb（librime 直接把 `*.txt` 当只读库读），
 # 不走编译，所以词表随 pack 放在 `en_dicts/` 下，见 tools/build-rime-pack.py。
 # 解析顺序是「用户目录 → shared 目录」回退，pack 目录即 shared 目录。
 
-cn_en:
-  db_class: stabledb
-  dictionary: ""
-  enable_completion: true
-  enable_sentence: false
-  initial_quality: 0.5
-  user_dict: "en_dicts/cn_en"
 emoji:
   # 展开后的 emoji 候选要带上真实读音注释，模糊音开关关闭时才能把它一起过滤掉
   inherit_comment: true
@@ -37,12 +29,16 @@ engine:
     - "qingyu_native@translator"
     - "qingyu_native@native_traditional"
     - "table_translator@english"
-    - "table_translator@cn_en"
 english:
   dictionary: english
   enable_sentence: false
   enable_user_dict: false
-  initial_quality: 1.1
+  # 中文模式里英文词不得压过本码的中文解释。中文简拼/补全候选的质量档是
+  # initial_quality(1.2) + (非正常拼写 ? -1 : 0) = 0.2，而 english 的词条无权重
+  # （log(DBL_EPSILON) → exp ≈ 0），原来的 1.1 让 `key`/`bug`/`six` 恒排第一。
+  # 0.1 落在 0.2 档之下：英文词仍在候选表里（同页靠后、翻页可选），英文模式
+  # 与 english 方案不受影响。见 F05-A 验收卡。
+  initial_quality: 0.1
 menu:
   page_size: 30
 punctuator:

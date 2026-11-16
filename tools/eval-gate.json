@@ -1,0 +1,34 @@
+{
+  "_critical": {
+    "st-001": 1,
+    "jp-010": 1
+  },
+  "_comparison": {
+    "top1_rate_drop_max": 0,
+    "top4_rate_drop_max": 0,
+    "mrr_drop_max": 0,
+    "missing_rate_increase_max": 0,
+    "cer_mean_increase_max": 0
+  },
+  "26key/correction": {
+    "top1_min": 5,
+    "max_missing": 0
+  },
+  "26key/initials": {
+    "top1_min": 300,
+    "max_missing": 90
+  },
+  "26key/reading": {
+    "top1_min": 4
+  },
+  "26key/sentence": {
+    "top1_min": 60
+  },
+  "26key/stateflow": {
+    "top1_min": 3
+  },
+  "t9/t9basic": {
+    "top1_min": 2,
+    "max_missing": 1
+  }
+}

@@ -268,6 +268,7 @@ struct JavaIds {
   jclass candidate_cls = nullptr;
   jmethodID candidate_ctor = nullptr;
   jfieldID candidate_original = nullptr;
+  jfieldID candidate_correction = nullptr;
   jclass schema_cls = nullptr;
   jmethodID schema_ctor = nullptr;
   jclass commit_cls = nullptr;
@@ -313,6 +314,8 @@ void InitJavaIds(JNIEnv* env) {
   g_java_ids.candidate_ctor = CacheCtor(env, g_java_ids.candidate_cls, kCandidateCtor);
   if (g_java_ids.candidate_cls)
     g_java_ids.candidate_original = env->GetFieldID(g_java_ids.candidate_cls, "isOriginal", "Z");
+  if (g_java_ids.candidate_cls)
+    g_java_ids.candidate_correction = env->GetFieldID(g_java_ids.candidate_cls, "isSpellingCorrection", "Z");
   g_java_ids.schema_cls = CacheClass(env, kSchemaCls);
   g_java_ids.schema_ctor = CacheCtor(env, g_java_ids.schema_cls, kSchemaCtor);
   g_java_ids.commit_cls = CacheClass(env, kCommitCls);
@@ -332,6 +335,7 @@ void InitJavaIds(JNIEnv* env) {
   g_java_ids.ready = g_java_ids.candidate_cls != nullptr &&
                      g_java_ids.candidate_ctor != nullptr &&
                      g_java_ids.candidate_original != nullptr &&
+                     g_java_ids.candidate_correction != nullptr &&
                      g_java_ids.commit_cls != nullptr &&
                      g_java_ids.commit_ctor != nullptr &&
                      g_java_ids.composition_cls != nullptr &&
@@ -391,6 +395,8 @@ jobject NewCandidateMenu(JNIEnv* env, const RimeMenu& src) {
     jobject item = NewCandidate(env, src.candidates[i]);
     if (item && IsOriginalCandidate(g_session, static_cast<size_t>(src.page_no * src.page_size + i)))
       env->SetBooleanField(item, g_java_ids.candidate_original, JNI_TRUE);
+    if (item && IsSpellingCorrectionCandidate(g_session, static_cast<size_t>(src.page_size * src.page_no + i)))
+      env->SetBooleanField(item, g_java_ids.candidate_correction, JNI_TRUE);
     if (item == nullptr) {
       // Kotlin 的 Array<Candidate> 不接受 null 元素；宁可整页降级，也不要把
       // 带洞的数组交给上层（后续 candidate.text 会直接 NPE）。
@@ -827,6 +833,26 @@ Java_com_qingyu_inputmethod_core_RimeSession_nativeSetOption(JNIEnv* env,
   }
   const string name = ToStd(env, option);
   RimeSetOption(g_session, name.c_str(), value ? True : False);
+}
+
+/** SDK-owned editor policy is a property, not a schema-switchable option. */
+JNIEXPORT void JNICALL
+Java_com_qingyu_inputmethod_core_RimeSession_nativeSetPersonalizedLearningEnabled(
+    JNIEnv* /*env*/, jobject /*thiz*/, jboolean enabled) {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (g_session != 0)
+    RimeSetProperty(g_session, "qingyu_no_learning", enabled ? "0" : "1");
+}
+
+/** Keep the native syllable graph aligned with the SDK's fuzzy switches. */
+JNIEXPORT void JNICALL
+Java_com_qingyu_inputmethod_core_RimeSession_nativeSetSpellingPolicy(
+    JNIEnv* /*env*/, jobject /*thiz*/, jint groups, jboolean correction) {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (!g_session || groups < 0 || groups > 15) return;
+  const char* names[] = {"qingyu_fuzzy_zh_z", "qingyu_fuzzy_n_l", "qingyu_fuzzy_f_h", "qingyu_fuzzy_nasal"};
+  for (int i = 0; i < 4; ++i) RimeSetOption(g_session, names[i], groups & (1 << i) ? True : False);
+  RimeSetOption(g_session, "qingyu_word_correction", correction ? True : False);
 }
 
 /** 当前方案 id。 */

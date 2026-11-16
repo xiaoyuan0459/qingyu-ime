@@ -1,11 +1,11 @@
 # =============================================================================
 # 轻语输入法 · 自研 native 层（libqingyu_rime.so）
 #
-# 产出物实现 `RimeSession.kt` 的 native 边界，静态链接一份**未修改的上游
-# librime**及其依赖。
+# 产出物实现 `RimeSession.kt` 的 native 边界，静态链接锁定的上游
+# librime、可重放补丁及其依赖。
 #
 # 与旧预编译库的差别：旧库是 librime 的私有分叉（带 AssociateRear 补丁与包名白名单），
-# 本工程直接使用 pristine 上游源码；升级需验证 C API 与只读 ReverseDb 边界。
+# 本工程使用固定上游提交并在构建时重放显式补丁；升级需验证 C API 与只读 ReverseDb 边界。
 #
 # 为什么不用 librime 自带的 find_package 找依赖
 # ---------------------------------------------
@@ -239,9 +239,11 @@ set(Opencc_LIBRARY       libopencc)
 # 相邻键纠错需要新的 `correct` 拼写类型（排在 abbrev 之后），让精确/简拼路径存在时
 # 音节图剪掉纠错切分；vendored librime 不在仓库内，构建前用脚本幂等重放。
 # 决策与验证见 docs/adr/0007-纠错切分权重.md。
+set(_correction_patch "${CMAKE_CURRENT_LIST_DIR}/../../../../../tools/patch-librime-correction-type.py")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_correction_patch}")
 execute_process(
   COMMAND "${PYTHON_EXECUTABLE}"
-          "${CMAKE_CURRENT_LIST_DIR}/../../../../../tools/patch-librime-correction-type.py"
+          "${_correction_patch}"
           "${LIBRIME_ROOT}"
   RESULT_VARIABLE _correction_patch_result
   OUTPUT_VARIABLE _correction_patch_output
@@ -254,6 +256,52 @@ if(NOT _correction_patch_result EQUAL 0)
   message(FATAL_ERROR "librime 纠错拼写类型补丁失败：${_correction_patch_error}")
 endif()
 
+set(_editor_learning_patch "${CMAKE_CURRENT_LIST_DIR}/../../../../../tools/patch-librime-editor-learning.py")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_editor_learning_patch}")
+execute_process(
+  COMMAND "${PYTHON_EXECUTABLE}" "${_editor_learning_patch}" "${LIBRIME_ROOT}"
+  RESULT_VARIABLE _editor_learning_patch_result
+  OUTPUT_VARIABLE _editor_learning_patch_output
+  ERROR_VARIABLE _editor_learning_patch_error
+)
+if(NOT _editor_learning_patch_result EQUAL 0)
+  message(FATAL_ERROR "librime editor learning patch failed: ${_editor_learning_patch_error}")
+endif()
+message(STATUS "${_editor_learning_patch_output}")
+
+set(_spelling_policy_patch "${CMAKE_CURRENT_LIST_DIR}/../../../../../tools/patch-librime-spelling-policy.py")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_spelling_policy_patch}")
+execute_process(
+  COMMAND "${PYTHON_EXECUTABLE}" "${_spelling_policy_patch}" "${LIBRIME_ROOT}"
+  RESULT_VARIABLE _spelling_policy_result
+  ERROR_VARIABLE _spelling_policy_error
+)
+if(NOT _spelling_policy_result EQUAL 0)
+  message(FATAL_ERROR "librime spelling policy patch failed: ${_spelling_policy_error}")
+endif()
+
+set(_table_cursor_patch "${CMAKE_CURRENT_LIST_DIR}/../../../../../tools/patch-librime-table-cursor.py")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_table_cursor_patch}")
+execute_process(
+  COMMAND "${PYTHON_EXECUTABLE}" "${_table_cursor_patch}" "${LIBRIME_ROOT}"
+  RESULT_VARIABLE _table_cursor_result
+  ERROR_VARIABLE _table_cursor_error
+)
+if(NOT _table_cursor_result EQUAL 0)
+  message(FATAL_ERROR "librime table cursor patch failed: ${_table_cursor_error}")
+endif()
+
+set(_exact_words_patch "${CMAKE_CURRENT_LIST_DIR}/../../../../../tools/patch-librime-exact-words.py")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_exact_words_patch}")
+execute_process(
+  COMMAND "${PYTHON_EXECUTABLE}" "${_exact_words_patch}" "${LIBRIME_ROOT}"
+  RESULT_VARIABLE _exact_words_result
+  ERROR_VARIABLE _exact_words_error
+)
+if(NOT _exact_words_result EQUAL 0)
+  message(FATAL_ERROR "librime exact word patch failed: ${_exact_words_error}")
+endif()
+
 add_subdirectory(${LIBRIME_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/librime-build EXCLUDE_FROM_ALL)
 
 # ------------------------------------------------------------------ 本模块
@@ -261,6 +309,13 @@ add_subdirectory(${LIBRIME_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/librime-build EXCLU
 add_library(qingyu_rime SHARED
   ${CMAKE_CURRENT_LIST_DIR}/jni.cc
     ${CMAKE_CURRENT_LIST_DIR}/native_script.cc
+  ${CMAKE_CURRENT_LIST_DIR}/spelling_policy.cc
+  ${CMAKE_CURRENT_LIST_DIR}/word_correction.cc
+  ${CMAKE_CURRENT_LIST_DIR}/canonical_syllabary.cc
+  ${CMAKE_CURRENT_LIST_DIR}/neighbor_key_recovery.cc
+  ${CMAKE_CURRENT_LIST_DIR}/adjacent_transposition_recovery.cc
+  ${CMAKE_CURRENT_LIST_DIR}/missing_letter_recovery.cc
+  ${CMAKE_CURRENT_LIST_DIR}/t9_key_recovery.cc
   ${CMAKE_CURRENT_LIST_DIR}/association.cc
   ${CMAKE_CURRENT_LIST_DIR}/stroke_lookup.cc
   ${CMAKE_CURRENT_LIST_DIR}/stroke_wildcard.cc
@@ -324,7 +379,31 @@ target_link_libraries(qingyu_deployer
 # 读已部署的 prism/table 二进制，导出「哪些码被接受 → 解析成哪些音节」的 TSV，
 # 用于把「重编 speller/algebra 后码空间不变」变成可差分校验的事。
 # 理由见 probe.cc 头部注释。同样不打进 APK。
-add_executable(qingyu_probe ${CMAKE_CURRENT_LIST_DIR}/probe.cc ${CMAKE_CURRENT_LIST_DIR}/native_script.cc)
+# 回放（--replay）单独成文件：见 probe_replay.cc 头部注释。
+add_executable(qingyu_probe
+  ${CMAKE_CURRENT_LIST_DIR}/probe.cc
+  ${CMAKE_CURRENT_LIST_DIR}/probe_replay.cc
+  ${CMAKE_CURRENT_LIST_DIR}/probe_observation.cc
+  ${CMAKE_CURRENT_LIST_DIR}/native_script.cc
+  ${CMAKE_CURRENT_LIST_DIR}/spelling_policy.cc
+  ${CMAKE_CURRENT_LIST_DIR}/word_correction.cc
+  ${CMAKE_CURRENT_LIST_DIR}/canonical_syllabary.cc
+  ${CMAKE_CURRENT_LIST_DIR}/neighbor_key_recovery.cc
+  ${CMAKE_CURRENT_LIST_DIR}/adjacent_transposition_recovery.cc
+  ${CMAKE_CURRENT_LIST_DIR}/missing_letter_recovery.cc
+  ${CMAKE_CURRENT_LIST_DIR}/t9_key_recovery.cc)
+set(QINGYU_PROBE_SOURCE_MATERIAL "")
+foreach(QINGYU_SOURCE_NAME probe.cc probe_replay.cc probe_observation.cc native_script.cc native_script.h spelling_policy.cc spelling_policy.h word_correction.cc word_correction.h missing_letter_recovery.cc missing_letter_recovery.h adjacent_transposition_recovery.cc adjacent_transposition_recovery.h neighbor_key_recovery.cc neighbor_key_recovery.h canonical_syllabary.cc canonical_syllabary.h t9_key_recovery.cc t9_key_recovery.h t9_keys.h)
+  file(SHA256 "${CMAKE_CURRENT_LIST_DIR}/${QINGYU_SOURCE_NAME}" QINGYU_SOURCE_DIGEST)
+  string(APPEND QINGYU_PROBE_SOURCE_MATERIAL "${QINGYU_SOURCE_DIGEST}")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/${QINGYU_SOURCE_NAME}")
+endforeach()
+file(SHA256 "${_exact_words_patch}" QINGYU_EXACT_WORDS_PATCH_DIGEST)
+string(APPEND QINGYU_PROBE_SOURCE_MATERIAL "${QINGYU_EXACT_WORDS_PATCH_DIGEST}")
+string(SHA256 QINGYU_PROBE_SOURCE_DIGEST "${QINGYU_PROBE_SOURCE_MATERIAL}")
+target_compile_definitions(qingyu_probe PRIVATE
+  QINGYU_PROBE_SOURCE_SHA="${QINGYU_PROBE_SOURCE_DIGEST}"
+  QINGYU_PROBE_BUILD_TYPE="${CMAKE_BUILD_TYPE}")
 
 target_include_directories(qingyu_probe PRIVATE
   ${LIBRIME_ROOT}/src
@@ -342,6 +421,23 @@ target_link_libraries(qingyu_probe
     yaml-cpp
     log
     android)
+
+add_executable(qingyu_workflow_probe
+  ${CMAKE_CURRENT_LIST_DIR}/probe_workflows.cc
+  ${CMAKE_CURRENT_LIST_DIR}/probe_observation.cc
+  ${CMAKE_CURRENT_LIST_DIR}/native_script.cc
+  ${CMAKE_CURRENT_LIST_DIR}/spelling_policy.cc
+  ${CMAKE_CURRENT_LIST_DIR}/word_correction.cc
+  ${CMAKE_CURRENT_LIST_DIR}/canonical_syllabary.cc
+  ${CMAKE_CURRENT_LIST_DIR}/neighbor_key_recovery.cc
+  ${CMAKE_CURRENT_LIST_DIR}/adjacent_transposition_recovery.cc
+  ${CMAKE_CURRENT_LIST_DIR}/missing_letter_recovery.cc
+  ${CMAKE_CURRENT_LIST_DIR}/t9_key_recovery.cc)
+target_include_directories(qingyu_workflow_probe PRIVATE
+  ${LIBRIME_ROOT}/src ${LIBRIME_ROOT}/include
+  ${CMAKE_CURRENT_BINARY_DIR}/librime-build/src)
+target_link_libraries(qingyu_workflow_probe PRIVATE
+  rime-static marisa libopencc leveldb yaml-cpp log android)
 
 # 链接期瘦身。
 # 只保留对外可见的 15 个 JNI 入口，静态库符号不外泄。

@@ -11,7 +11,7 @@
 - rime-essay  LGPL-3.0，rime 官方通用词频，偏书面与文学
 - jieba      MIT，新闻语料词频，偏正式书面
 
-缺源时按剩余源重新归一化权重，所以三源齐不齐都能跑。输出是「词 → 参考权重」的
+显式 --no-jieba 时按两源重新归一化；缺少依赖会失败。输出是「词 → 参考权重」的
 覆盖表，由 `build-rime-pack.py` 在组装阶段注入，上游源文件保持原样不动。
 
 用法::
@@ -95,12 +95,11 @@ def read_essay(path: Path) -> dict[str, float]:
 
 
 def read_jieba() -> dict[str, float]:
-    """读 jieba 内置词典 `词 词频 词性`。jieba 是可选依赖，缺失时返回空表。"""
+    """读 jieba 内置词典；三源实验缺依赖时拒绝悄悄降为两源。"""
     try:
         import jieba  # noqa: PLC0415  —— 可选依赖，放函数内按需导入
     except ImportError:
-        print("未安装 jieba，本次只用上游 + essay 两源（pip install jieba 可启用三源）")
-        return {}
+        raise SystemExit("缺少 jieba：三源实验拒绝降为两源；确需两源时显式给出 --no-jieba") from None
 
     freq: dict[str, float] = {}
     with jieba.get_dict_file() as handle:

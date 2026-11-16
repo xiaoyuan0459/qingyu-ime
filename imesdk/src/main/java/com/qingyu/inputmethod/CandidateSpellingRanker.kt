@@ -66,6 +66,10 @@ internal object CandidateSpellingRanker {
         var reordered = false
         for (i in page.indices) {
             if (exact[i]) continue
+            // Native whole-word recovery has already protected literal/abbreviated
+            // words and ordered its alternatives. Do not demote it a second time
+            // through the weaker per-syllable correction table.
+            if (page[i].isSpellingCorrection) continue
             correctionOnly[i] = isCorrectionOnly(
                 readings[i], compact, enabledFuzzyGroups, encode,
                 fuzzyCache, normalCache, correctionCache,

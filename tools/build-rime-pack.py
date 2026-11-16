@@ -37,6 +37,8 @@ from pathlib import Path
 # 同目录模块：自有频率覆盖表的读取与注入（见 tools/rime_freq.py）
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rime_freq import apply_freq_table  # noqa: E402
+from rime_reading_freq import apply_reading_table  # noqa: E402
+from rime_source_provenance import source_snapshot, verify_compilation  # noqa: E402
 from rime_associations import build_associations  # noqa: E402
 from rime_native_forms import build_native_forms, native_compile_schemas  # noqa: E402
 
@@ -220,10 +222,12 @@ def write_archive(pack_out, archive_out):
 
 def package_runtime(source, compiled, clone, stroke, pack_out, archive_out, upstream):
     require(compiled, "编译产物目录不存在: {path}")
+    verify_compilation(Path(source), Path(compiled))
     if os.path.isdir(pack_out):
         shutil.rmtree(pack_out)
     os.makedirs(pack_out)
     shutil.copytree(compiled, os.path.join(pack_out, "build"))
+    copy_normalized(os.path.join(source, "source-provenance.json"), os.path.join(pack_out, "source-provenance.json"))
     build_associations(source, os.path.join(pack_out, "associate.bin"))
     build_associations(source, os.path.join(pack_out, "associate-traditional.bin"), "native_hant.dict.yaml")
     for name in ("native-forms.json", "AUTHORS.cc-cedict"):
@@ -398,6 +402,10 @@ def main():
                     help="预置词汇表 essay.txt")
     ap.add_argument("--freq", default=None,
                     help="显式注入自有频率覆盖表；默认保留所选上游的原生词频")
+    ap.add_argument("--reading-freq", type=Path, default=None,
+                    help="实验读音覆盖表（词/读音/权重），与 --freq 互斥，在生成原生繁体前注入")
+    ap.add_argument("--frequency-provenance", type=Path, default=None,
+                    help="频率生成报告，核对输出哈希并随源快照绑定训练与参数来源")
     ap.add_argument("--no-freq", dest="freq", action="store_const", const=None,
                     help="不注入自有频率，完全沿用上游权重")
     ap.add_argument("--out", default=None, help="输出的部署输入目录")
@@ -406,6 +414,12 @@ def main():
     ap.add_argument("--archive-out", default=None, help="pack 归档输出路径")
     ap.add_argument("--package", action="store_true", help="封装已编译产物，不重新组装源")
     args = ap.parse_args()
+    if args.freq and args.reading_freq:
+        ap.error("--freq 与 --reading-freq 不能混用")
+    if args.package and args.reading_freq:
+        ap.error("--reading-freq 只用于装配；先生成并编译实验源，再执行 --package")
+    if args.reading_freq and (not args.out or not args.reading_freq.is_file()):
+        ap.error("--reading-freq 必须存在，且必须用 --out 指定独立实验源目录")
 
     upstream = UPSTREAMS[args.upstream]
     args.clone = args.clone or upstream["clone"]
@@ -499,6 +513,9 @@ def main():
         if name.endswith(".schema.yaml") or name == "default.yaml":
             copy_file(os.path.join(SCHEMA_DIR, name), name)
 
+    if args.reading_freq:
+        result = apply_reading_table(Path(out) / "cn_dicts", args.reading_freq)
+        print(f"读音频率：覆盖 {result['wanted']:,} 条，命中 {result['hit_keys']:,} 条；仅用于实验包")
     build_native_forms(Path(out), Path(REPO))
     native_schemas = native_compile_schemas(Path(out))
 
@@ -508,6 +525,8 @@ def main():
         stream.writelines(f"  - schema: {schema}\n" for schema in SCHEMAS + native_schemas)
 
     assert_shared_prisms_agree(out)
+
+    source_snapshot(Path(out), upstream, args.reading_freq or (Path(args.freq) if args.freq else None), args.frequency_provenance)
 
     total = sum(os.path.getsize(os.path.join(root, f))
                 for root, _, files in os.walk(out) for f in files)

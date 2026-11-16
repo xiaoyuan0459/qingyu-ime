@@ -1,14 +1,3 @@
-# `cn_en` 段的中英混输词表是 stabledb（librime 直接把 `*.txt` 当只读库读），
-# 不走编译，所以词表随 pack 放在 `en_dicts/` 下，见 tools/build-rime-pack.py。
-# 解析顺序是「用户目录 → shared 目录」回退，pack 目录即 shared 目录。
-
-cn_en:
-  db_class: stabledb
-  dictionary: ""
-  enable_completion: true
-  enable_sentence: false
-  initial_quality: 0.5
-  user_dict: "en_dicts/cn_en_mspy"
 emoji:
   inherit_comment: false
   opencc_config: emoji.json
@@ -36,7 +25,6 @@ engine:
     - "qingyu_native@translator"
     - "qingyu_native@native_traditional"
     - "table_translator@english"
-    - "table_translator@cn_en"
 english:
   dictionary: english
   enable_sentence: false

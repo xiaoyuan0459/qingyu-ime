@@ -5,6 +5,7 @@
     <color name="pref_category_text">#A4A4A4</color>
     <color name="pref_accent">#8AB4F8</color>
     <color name="pref_switch_track_off">#48484A</color>
+    <color name="pref_switch_track_on">#3F4D64</color>
     <color name="pref_slider_track_inactive">#3C3C3C</color>
     <color name="pref_divider">#3A3A3A</color>
     <color name="pref_chevron">#B7B7B7</color>
