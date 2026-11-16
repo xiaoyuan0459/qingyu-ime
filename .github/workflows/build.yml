@@ -202,6 +202,12 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write(f'sha={sha}\n')
           PY
+      - name: Prepare APK verification tools
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          cmdline-tools-version: '12266719'
+          log-accepted-android-sdk-licenses: false
+          packages: 'build-tools;37.0.0'
       - name: Restore and verify signed APK
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
@@ -217,7 +223,6 @@ jobs:
           )
           signed_apk="relay/qingyu-ime-$TAG-arm64-v8a.apk"
           python tools/signed-apk-delta.py restore "$unsigned_apk" relay/signature-delta.json.gz "$signed_apk" --sha256 "$APK_SHA"
-          sdkmanager 'build-tools;37.0.0' > relay/sdk-install.log
           "$ANDROID_HOME/build-tools/37.0.0/zipalign" -c -P 16 4 "$signed_apk"
           "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs "$signed_apk" > relay/signature.log
           python - <<'PY'
